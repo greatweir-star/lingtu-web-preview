@@ -510,8 +510,9 @@ select.field{height:42px}
 <div class="overlay" id="settingsPanel" role="dialog" aria-modal="true">
   <div class="sheet">
     <h3>设置</h3>
-    <p class="hint">公开体验版：请连接你自己的模型服务。密钥仅保留在当前页面内存中，刷新或关闭后清空；调用时会发送给你配置的服务商。草图和描述也会发送给该服务商，使用费用由服务商收取。</p>
+    <p class="hint">网站已连接识图和绘画模型，无需填写密钥。草图和描述会发送到网站配置的模型服务商。试运行免费，每个访客每天最多发起5次绘画，全站每天20次；一次生成一张。</p>
 
+    <div hidden>
     <div class="row"><label>视觉 base</label><input class="field" id="visionBase" type="text" placeholder="https://ai.cangyuansuanli.cn/v1" /></div>
     <div class="row"><label>vision model（逗号分隔按序降级）</label><input class="field" id="visionModel" type="text" placeholder="gpt-5.6-terra,gpt-5.6-sol,gpt-5.5" /></div>
     <div class="row"><label>vision key</label><input class="field" id="visionKey" type="password" autocomplete="off" /></div>
@@ -519,6 +520,7 @@ select.field{height:42px}
     <div class="row"><label>image model（逗号分隔按序降级）</label><input class="field" id="imageModel" type="text" value="gpt-image-2.5,nano-banana2-1k,nano-banana-pro-1k,gpt-image-2" /></div>
     <div class="row"><label>image key</label><input class="field" id="imageKey" type="password" autocomplete="off" /></div>
 
+    </div>
     <div class="setting-row">
       <div><div class="lbl">🛡️ 家长监护模式</div><div class="sub">隐藏分享 · 每日限 5 张 · 本机内容过滤</div></div>
       <label class="switch"><input type="checkbox" id="parentToggle" /><span class="slider-tg"></span></label>
@@ -530,7 +532,7 @@ select.field{height:42px}
 
     <div class="sheet-actions">
       <button class="btn" id="settingsClose">关闭</button>
-      <button class="btn" id="settingsClear">清空 Keys</button>
+      <button class="btn" id="settingsClear" hidden>清空 Keys</button>
       <button class="btn primary" id="settingsSave">保存</button>
     </div>
     <div class="hint" id="settingsMsg"></div>
@@ -553,7 +555,7 @@ select.field{height:42px}
 <div class="overlay" id="upgradePanel" role="dialog" aria-modal="true">
   <div class="sheet">
     <h3 id="upgradeTitle">灵图 · 公开体验版</h3>
-    <p class="hint" id="upgradeHint">上传或绘制草图，确认想法、编辑提示词，再生成图片。请先在设置中填写你自己的模型服务与密钥，实际调用费用由服务商收取。</p>
+    <p class="hint" id="upgradeHint">上传或绘制草图，确认想法、编辑提示词，再生成图片。网站已连接模型，无需填写密钥。试运行不收费，每位访客每天最多发起5次绘画。</p>
     <p class="hint">本页不提供会员购买或广告奖励。部分高级功能仍在完善，账号云同步、高清处理和举报服务尚未接通。作品与创作进度保存在当前设备。</p>
     <div class="sheet-actions"><button class="btn primary" id="upgradeClose">知道了</button></div>
   </div>
@@ -583,7 +585,7 @@ select.field{height:42px}
 <div class="overlay" id="reportPanel" role="dialog" aria-modal="true">
   <div class="sheet" style="max-width:380px">
     <h3>举报这张图</h3>
-    <p class="hint">举报服务尚未接通，本页不会提交举报。请联系你配置的模型服务商。</p>
+    <p class="hint">举报服务尚未接通，本页不会提交举报。请联系网站配置的模型服务商。</p>
     <div class="chips" id="reportReasons">
       <button class="chip" data-r="不适宜内容">不适宜内容</button>
       <button class="chip" data-r="侵犯版权">侵犯版权</button>
@@ -759,6 +761,52 @@ select.field{height:42px}
   const DAILY_THEMES = ['画一只会飞的猫','画一条住在云里的鱼','画一只戴帽子的小恐龙','画一座糖果城堡','画一只在月亮上钓鱼的兔子','画会说话的小火车','画一片倒着长的森林','画一只穿围裙的小狐狸','画一艘在牛奶海里的纸船','画一颗会跳舞的星星','画一个住在茶壶里的小精灵','画一头背着房子的蜗牛','画一只给月亮写信的小熊','画彩虹滑梯','画一只爱吃冰淇淋的云朵','画海底的生日派对'];
 
   /* ---------- 全局状态（密钥仅内存） ---------- */
+
+  const PUBLIC_API_BASE = 'https://paintings-harper-draft-derby.trycloudflare.com';
+  let siteToken = '';
+  let sessionPromise = null;
+  async function siteSession(signal){
+    if (siteToken) return siteToken;
+    if (!sessionPromise) sessionPromise = (async () => {
+      const r = await fetchTimeoutWithController(PUBLIC_API_BASE + '/api/session', {method:'POST', signal}, 20000);
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.detail || '连接暂时不可用，请稍后重试。');
+      siteToken = data.token;
+      return siteToken;
+    })().finally(() => { sessionPromise = null; });
+    return sessionPromise;
+  }
+  async function siteRequest(path, init){
+    const token = await siteSession(init.signal);
+    const headers = new Headers(init.headers || {});
+    headers.set('Authorization', 'Bearer ' + token);
+    const options = Object.assign({}, init, {headers});
+    if (path === 'images/edits'){
+      options.body.set('n', '1');
+      options.body.set('confirmed', 'true');
+      options.body.set('request_id', crypto.randomUUID());
+      options.body.delete('negative_prompt');
+    }
+    let response;
+    try { response = await fetchTimeoutWithController(PUBLIC_API_BASE + '/v1/' + path, options, path === 'images/edits' ? 30000 : 110000); }
+    catch(e){ if (e.name === 'AbortError') throw e; throw new Error('暂时无法连接绘画服务，请稍后重试。草图仍然保留。'); }
+    const data = await response.json().catch(() => ({}));
+    if (response.status === 401) siteToken = '';
+    if (!response.ok) throw new Error(data.detail || '绘画服务暂时不可用，请稍后重试。');
+    if (path !== 'images/edits') return new Response(JSON.stringify(data), {headers:{'Content-Type':'application/json'}});
+    const deadline = Date.now() + 360000;
+    while (Date.now() < deadline){
+      if (init.signal && init.signal.aborted) throw new DOMException('已取消', 'AbortError');
+      const poll = await fetchTimeoutWithController(PUBLIC_API_BASE + '/api/jobs/' + encodeURIComponent(data.job_id), {headers:{Authorization:'Bearer '+token},signal:init.signal}, 20000);
+      const job = await poll.json();
+      if (!poll.ok) throw new Error(job.detail || '读取创作结果失败，请稍后重试。');
+      if (job.status === 'done') return new Response(JSON.stringify(job.result), {headers:{'Content-Type':'application/json'}});
+      if (job.status === 'failed') throw new Error(job.error || '模型暂时没有完成，请重试。');
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+    throw new Error('这次绘画等待较久，请稍后再试。');
+  }
+
   const state = {
     sourceSeq: 0, requestSeq: 0,
     sourceBlob: null, sourceDataUrl: '', sourceName: '', sourceKind: 'none',
@@ -887,7 +935,7 @@ select.field{height:42px}
   const ONBOARD_STEPS = [
     { mood:'happy', title:'嗨，我是小画笔精灵', desc:'在这里，你只要随便画几笔，我就能看懂你想画什么。' },
     { mood:'think', title:'告诉 AI 你的想法', desc:'上传一张照片，或在画布上画一笔，再聊聊你的小创意。' },
-    { mood:'celebrate', title:'得到一幅真正的画', desc:'确认想法、确认画面，一键生成。画廊和创作进度保存在这台设备；草图与描述会发送给你配置的模型服务商。请先在设置中连接模型。' }
+    { mood:'celebrate', title:'得到一幅真正的画', desc:'确认想法、确认画面，一键生成。画廊和创作进度保存在这台设备；草图与描述会发送给网站配置的模型服务商。网站已连接模型，可以直接开始创作。' }
   ];
   let onboardIdx = 0;
   function renderOnboard(){
@@ -1219,7 +1267,7 @@ select.field{height:42px}
 /* LINGTU_MARK_C */
   /* ---------- 素材来源 ---------- */
   const ALLOWED_SOURCE_TYPES = new Set(['image/png','image/jpeg','image/webp']);
-  const MAX_SOURCE_BYTES = 12 * 1024 * 1024;
+  const MAX_SOURCE_BYTES = 2 * 1024 * 1024;
   function canReplaceCurrentSketch(){
     if (!state.sketchStudio.dirty) return true;
     return window.confirm('当前草图还没提交，继续会清空它。要继续吗？');
@@ -1238,6 +1286,7 @@ select.field{height:42px}
   }
   function applySourcePayload(payload, options){
     if (!payload || !payload.blob) return;
+    const initialText = $('#composerInput').value.trim();
     const hit = findBanned(payload.name || '');
     if (hit){ toast('⚠️ 内容包含不适宜词语，请修改'); return; }
     clearDraftState();
@@ -1245,19 +1294,21 @@ select.field{height:42px}
     state.sourceDataUrl = payload.dataUrl;
     state.sourceName = payload.name || options.name || 'sketch.png';
     state.sourceKind = options.kind || 'upload';
+    state.intent = {observations:[],tentative:'',question:'',corrections:initialText ? [initialText] : []};
+    if (initialText){ addMsg('user', '<p>'+p(initialText)+'</p>'); $('#composerInput').value = ''; }
     addUserImageBubble(state.sourceDataUrl, state.sourceName);
     if (options.kind === 'sketch' || options.kind === 'upload'){
       state.sketchStudio.paths = []; state.sketchStudio.undone = []; state.sketchStudio.dirty = false;
       if (state.sketchStudio.canvas){ drawSketch(); updateSketchSubmissionState(); }
     }
     setStatus(options.status || '草图已收到');
-    if (state.visionConfig.key){ runVision(); }
+    if (PUBLIC_API_BASE || state.visionConfig.key){ runVision(); }
     else { state.stage = 'needs-recognition'; renderRecognitionRequired(); }
   }
   function fileToBlobSource(file){
     return new Promise((resolve, reject) => {
       if (!ALLOWED_SOURCE_TYPES.has(file.type)){ reject(new Error('请上传 PNG、JPEG 或 WebP 图片。')); return; }
-      if (file.size > MAX_SOURCE_BYTES){ reject(new Error('图片过大，请控制在 12MB 内。')); return; }
+      if (file.size > MAX_SOURCE_BYTES){ reject(new Error('图片过大，请控制在 2MB 内。')); return; }
       const version = state.sourceSeq;
       const reader = new FileReader();
       reader.onload = async () => {
@@ -1297,6 +1348,7 @@ select.field{height:42px}
     return list.length ? list : [String(cfg.model || '')];
   }
   async function postWithFallback(base, path, models, buildInit, timeoutMs, totalMs){
+    if (PUBLIC_API_BASE) return siteRequest(path, buildInit(models[0]));
     timeoutMs = timeoutMs || 240000; totalMs = totalMs || 480000;
     let lastErr = null;
     const deadline = Date.now() + totalMs;
@@ -1333,7 +1385,7 @@ select.field{height:42px}
   /* ---------- 识图 runVision ---------- */
   async function runVision(forced){
     if (!state.sourceBlob || !state.sourceDataUrl) return;
-    if (!state.visionConfig.key){ setStatus('未配置 vision key'); return; }
+    if (!PUBLIC_API_BASE && !state.visionConfig.key){ setStatus('未配置 vision key'); return; }
     if (state.busyVision){ setStatus('识别进行中，先别重复提交。'); return; }
     const req = ++state.requestSeq;
     const localSeq = state.sourceSeq;
@@ -1400,25 +1452,50 @@ select.field{height:42px}
     }
   }
 
-  /* ---------- 整理提示词 composePrompt（简化版：只推荐风格，不生成详细描述） ---------- */
-  function composePrompt(){
-    if (state.busyVision){ addGuide('识别未完成，请稍后。'); return; }
-    if (!state.intent || state.stage !== 'intent'){ addGuide('请先确认我对草图的理解。'); return; }
-    const req = ++state.requestSeq;
-    const localSeq = state.sourceSeq;
-    // 默认推荐写实照片风格（简笔草图 → 逼真真实图像）
-    const defaultStyle = '写实照片，逼真写实摄影，照片级真实感，自然光影，细节丰富，高清质感';
-    state.promptDraft = {
-      positive: '',
-      negative: '',
-      style: defaultStyle,
-      ratio: '16:9',
-      notes: []
-    };
-    state.stage = 'prompt';
-    renderPromptReview();
+  /* ---------- 确认意图后，模型生成可编辑提示词 ---------- */
+  async function composePrompt(revision){
+    revision = typeof revision === 'string' ? revision : '';
+    if (state.busyVision || state.busyGenerate) return;
+    if (!state.intent || (!revision && state.stage !== 'intent')){ addGuide('请先确认对草图的理解。'); return; }
+    const previous = state.promptDraft ? Object.assign({}, state.promptDraft) : null;
+    const req = ++state.requestSeq, localSeq = state.sourceSeq;
+    const controller = new AbortController();
+    state.visionController = controller;
+    state.busyVision = true;
+    state.stage = 'prompting';
     setStep(3);
-    setStatus('选个喜欢的风格，就可以生成啦。');
+    replaceCurrentCard();
+    state.draftNode = addMsg('assistant', '<p>正在把你的想法整理成可修改的画面描述…</p>');
+    $('#cancelBtn').style.display = 'inline-block';
+    try {
+      const text = '用户已确认的想法：' + state.intent.tentative
+        + '\n用户补充：' + (state.intent.corrections || []).join('；')
+        + (previous ? '\n当前可编辑字段：' + JSON.stringify(previous) : '')
+        + (revision ? '\n本次修改要求：' + revision : '\n请整理完整画面描述，让用户确认和修改。');
+      const payload = {phase:'prompt',stream:false,messages:[
+        {role:'system',content:'整理绘画提示词，只返回JSON：positive、negative、style、ratio。'},
+        {role:'user',content:text}
+      ],max_tokens:1200};
+      const resp = await postWithFallback(state.visionConfig.base,'chat/completions',modelList(state.visionConfig),
+        model => ({method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({},payload,{model}))}),110000);
+      const response = await resp.json();
+      const content = response.choices[0].message.content;
+      const parsed = JSON.parse(content.replace(/^```(?:json)?\s*|\s*```$/g,'').trim());
+      if (!parsed.positive || typeof parsed.positive !== 'string') throw new Error('没有收到完整的画面描述，请重试。');
+      if (req !== state.requestSeq || localSeq !== state.sourceSeq) return;
+      state.promptDraft = {positive:parsed.positive,negative:String(parsed.negative || ''),style:String(parsed.style || ''),ratio:['1:1','16:9','9:16'].includes(parsed.ratio) ? parsed.ratio : '16:9',notes:[]};
+      state.stage = 'prompt';
+      renderPromptReview();
+      setStatus('画面描述已准备好，可修改后确认生成。');
+    } catch(e){
+      if (req !== state.requestSeq || localSeq !== state.sourceSeq) return;
+      state.promptDraft = previous;
+      state.stage = previous ? 'prompt' : 'intent';
+      if (previous) renderPromptReview(); else renderIntent();
+      addGuide(e.name === 'AbortError' ? '已停止整理，原来的内容已保留。' : (e.message || '整理失败，请重试。'));
+    } finally {
+      if (req === state.requestSeq && localSeq === state.sourceSeq){ state.busyVision = false; $('#cancelBtn').style.display = 'none'; }
+    }
   }
 /* LINGTU_MARK_D */
   /* ---------- 卡片渲染 ---------- */
@@ -1455,7 +1532,7 @@ select.field{height:42px}
     const d = state.promptDraft;
     const ratioOptions = RATIO.map(i => '<option value="' + i.v + '"' + (i.v === d.ratio ? ' selected' : '') + '>' + i.label + '</option>').join('');
     const chips = STYLE_CHIPS.map(c => {
-      const locked = c.pro && !gam.member;
+      const locked = false;
       return '<button class="chip' + (d.style && d.style.indexOf(c.name) !== -1 ? ' sel' : '') + '" data-style="' + c.v + '" data-pro="' + (c.pro ? '1' : '') + '">'
         + c.name + (locked ? ' <span class="lock">🔒</span>' : '') + '</button>';
     }).join('');
@@ -1465,9 +1542,11 @@ select.field{height:42px}
         + n + '张' + (locked ? ' <span class="lock">🔒</span>' : '') + '</button>';
     }).join('');
     const html =
-      '<div class="inline-badge">选个风格</div>'
+      '<div class="inline-badge">确认画面描述</div>'
       + '<div style="width:64px;height:64px;margin:0 auto 4px">' + mascot('happy') + '</div>'
-      + '<div class="meta">原画会直接传给生图模型，你只要选个喜欢的风格就行</div>'
+      + '<div class="meta">先检查画面描述，可直接修改，也可以在下方告诉我怎么改。</div>'
+      + '<label class="field">画面描述</label><textarea class="field" id="posPrompt" rows="4">' + p(d.positive) + '</textarea>'
+      + '<label class="field">不想出现的内容（可选）</label><textarea class="field" id="negPrompt" rows="2">' + p(d.negative) + '</textarea>'
       + '<label class="field">风格描述（可修改）</label><input class="field" id="styleInput" type="text" value="' + p(d.style) + '" />'
       + '<div class="chips" id="styleChips">' + chips + '</div>'
       + '<div class="row-inline" style="margin-top:10px;gap:14px">'
@@ -1481,13 +1560,14 @@ select.field{height:42px}
       + '</div>';
     const box = addMsg('assistant', html);
     state.draftNode = box;
+    box.querySelector('#posPrompt').addEventListener('input', e => { d.positive = e.target.value; });
+    box.querySelector('#negPrompt').addEventListener('input', e => { d.negative = e.target.value; });
     const styleEl = box.querySelector('#styleInput');
     const ratioEl = box.querySelector('#ratioInput');
     styleEl.addEventListener('input', e => { d.style = e.target.value; });
     ratioEl.addEventListener('change', e => { d.ratio = e.target.value; });
     box.querySelectorAll('#styleChips .chip').forEach(ch => {
       ch.addEventListener('click', () => {
-        if (ch.getAttribute('data-pro') === '1' && !gam.member){ openUpgrade('这个高级风格是 PRO 专属哦'); return; }
         styleEl.value = ch.getAttribute('data-style');
         d.style = ch.getAttribute('data-style');
         box.querySelectorAll('#styleChips .chip').forEach(x => x.classList.toggle('sel', x === ch));
@@ -1512,7 +1592,7 @@ select.field{height:42px}
 
   function renderRecognitionRequired(failureMessage){
     replaceCurrentCard();
-    const canRetry = !!state.visionConfig.key;
+    const canRetry = !!PUBLIC_API_BASE || !!state.visionConfig.key;
     const title = failureMessage ? '这次没能完成识图，草图和你的想法都保留着。' : '还差一步：连接识图模型';
     const detail = failureMessage || '在右上角设置里填入 vision key，我就能先看懂你画的是什么。';
     const html =
@@ -1528,8 +1608,7 @@ select.field{height:42px}
 
   function getDraftPrompt(){
     const d = state.promptDraft;
-    // 简笔草图 → 逼真写实图像，只传风格等少量提示词
-    return '将这幅简笔草图转化为逼真的写实图像，保持原图构图和主体：' + (d.style || '逼真写实摄影，照片级真实感');
+    return [d.positive, d.style ? '风格：'+d.style : '', d.negative ? '请避免：'+d.negative : '', '保留原始草图的主体和构图，并按上述已确认描述完成画面。'].filter(Boolean).join('\n');
   }
 
   /* ---------- 生图等待体验（分阶段进度+吉祥物互动+趣味文案） ---------- */
@@ -1584,7 +1663,7 @@ select.field{height:42px}
     // 内容过滤：画面描述 + 风格 + 负面词
     const hit = findBanned(state.promptDraft.positive + ' ' + state.promptDraft.style + ' ' + state.promptDraft.negative);
     if (hit){ toast('⚠️ 内容包含不适宜词语，请修改后再生成'); return; }
-    if (!state.imageConfig.key){ addGuide('还没有连接生图模型，请先在设置里填写 image key。'); return; }
+    if (!PUBLIC_API_BASE && !state.imageConfig.key){ addGuide('还没有连接生图模型，请先在设置里填写 image key。'); return; }
     if (!consumePointsIfAllowed()) return;
     runGenerate();
   }
@@ -1618,9 +1697,8 @@ select.field{height:42px}
           fd.append('model', model);
           fd.append('image', state.sourceBlob, state.sourceName || 'source.png');
           fd.append('prompt', getDraftPrompt());
-          fd.append('negative_prompt', '简笔画,线稿,素描,卡通,插画,手绘,涂鸦,低质量,模糊');
           fd.append('n', String(n));
-          fd.append('size', ratio.size);
+          fd.append('size', ratio.s);
           return {
             method:'POST',
             headers: { Authorization:'Bearer ' + state.imageConfig.key },
@@ -1634,8 +1712,8 @@ select.field{height:42px}
       const data = await resp.json();
       if (req !== state.requestSeq || localSeq !== state.sourceSeq) return;
       const items = (data && Array.isArray(data.data)) ? data.data : [];
-      const urls = items.map(item => (typeof item && item.b64_json === 'string' && item.b64_json)
-        ? ('data:image/png;base64,' + item.b64_json)
+      const urls = items.map(item => (item && typeof item.b64_json === 'string' && item.b64_json)
+        ? ('data:' + (item.mime_type || 'image/png') + ';base64,' + item.b64_json)
         : (item && item.url)).filter(Boolean);
       if (!urls.length) throw new Error('无返回图片');
       genLoading.finish();
@@ -1682,26 +1760,14 @@ select.field{height:42px}
       addGuide('请先画一笔或上传照片，再告诉我你的想法。');
     }
   }
-  /* ---------- 文字改稿 revisePrompt（简化版：直接更新风格，不调用API） ---------- */
   function revisePrompt(text){
-    if (!state.promptDraft) return;
-    const d = state.promptDraft;
-    const hit = findBanned(text);
-    if (hit){ toast('⚠️ 内容包含不适宜词语，请换个说法'); return; }
-    // 如果用户说"改成X"/"换成X"/"用X"，就替换风格；否则追加到风格后面
-    const m = text.match(/(?:改成|换成|换|要|用|希望|想要)\s*(.+)/);
-    if (m && m[1]) {
-      d.style = m[1].trim();
-    } else {
-      d.style = (d.style || '') + '，' + text;
-    }
-    renderPromptReview();
-    addGuide('风格已更新：' + d.style);
-    setStatus('风格已更新，确认后即可生成。');
+    if (!state.promptDraft || state.busyVision || state.busyGenerate) return;
+    composePrompt(text);
   }
   function onSend(){
     const text = $('#composerInput').value.trim();
     if (!text) return;
+    if (state.busyVision || state.busyGenerate){ setStatus('正在处理，请稍后发送。你的文字已保留。'); return; }
     if (state.sourceKind === 'none' || (state.sketchStudio.canvas && state.sketchStudio.canvas.isConnected && state.sketchStudio.dirty)){
       if (state.sketchStudio.dirty) setStatus('请先点"用这张草图"提交当前草图；你的文字已保留。');
       else setStatus('请先画一笔或上传照片，再发送想法；文字已保留。');
@@ -1808,7 +1874,7 @@ select.field{height:42px}
       +   '<button class="btn small" data-act="gallery">💾 存到画廊</button>'
       +   (hideShare ? '' : '<button class="btn small" data-act="share">📤 分享</button>')
       +   '<button class="btn small" data-act="hd" disabled title="高清处理尚未接通">高清未接通</button>'
-      +   '<button class="btn small" data-act="report" disabled title="请联系你配置的模型服务商">举报未接通</button>'
+      +   '<button class="btn small" data-act="report" disabled title="请联系网站配置的模型服务商">举报未接通</button>'
       +   '<button class="btn small" data-act="download">⬇️ 下载</button>'
       + '</div>';
     const box = addMsg('assistant', html);
@@ -1827,7 +1893,7 @@ select.field{height:42px}
     act('redo', () => { unlockAch('redo'); if (!consumePointsIfAllowed()) return; runGenerate(); });
     act('restyle', () => { state.stage = 'prompt'; renderPromptReview(); setStep(3); });
     act('hd', () => toast('高清处理尚未接通。'));
-    act('report', () => toast('举报服务尚未接通，请联系你配置的模型服务商。'));
+    act('report', () => toast('举报服务尚未接通，请联系网站配置的模型服务商。'));
   }
 
   /* ---------- 举报 ---------- */
@@ -1947,7 +2013,7 @@ select.field{height:42px}
     $('#parentToggle').checked = gam.parentMode;
     $('#pinInput').value = '';
     $('#settingsBtn').addEventListener('click', () => {
-      $('#settingsMsg').textContent = '密钥只保存在本次会话内存中，关闭页面即清空。';
+      $('#settingsMsg').textContent = '网站模型服务已接通，密钥保存在服务端。';
       $('#settingsPanel').classList.add('show');
     });
     $('#settingsClose').addEventListener('click', closeSettings);
