@@ -1536,7 +1536,7 @@ select.field{height:42px}
       return '<button class="chip' + (d.style && d.style.indexOf(c.name) !== -1 ? ' sel' : '') + '" data-style="' + c.v + '" data-pro="' + (c.pro ? '1' : '') + '">'
         + c.name + (locked ? ' <span class="lock">🔒</span>' : '') + '</button>';
     }).join('');
-    const nOptions = [1, 2, 4].map(n => {
+    const nOptions = [1].map(n => {
       const locked = n > 1 && !gam.member;
       return '<button class="seg-n" data-n="' + n + '"' + (state.genCount === n ? ' data-sel="1"' : '') + '>'
         + n + '张' + (locked ? ' <span class="lock">🔒</span>' : '') + '</button>';
@@ -1661,7 +1661,7 @@ select.field{height:42px}
       addGuide('请先确认可编辑的画面描述。'); return;
     }
     // 内容过滤：画面描述 + 风格 + 负面词
-    const hit = findBanned(state.promptDraft.positive + ' ' + state.promptDraft.style + ' ' + state.promptDraft.negative);
+    const hit = findBanned(state.promptDraft.positive + ' ' + state.promptDraft.style);
     if (hit){ toast('⚠️ 内容包含不适宜词语，请修改后再生成'); return; }
     if (!PUBLIC_API_BASE && !state.imageConfig.key){ addGuide('还没有连接生图模型，请先在设置里填写 image key。'); return; }
     if (!consumePointsIfAllowed()) return;
