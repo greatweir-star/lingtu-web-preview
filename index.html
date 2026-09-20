@@ -1,0 +1,2059 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>灵图 · 手绘成真 · 公开体验版</title>
+<meta name="description" content="上传草图或随手画几笔，确认想法、修改提示词，再连接你自己的模型服务生成图片。灵图公开体验版。">
+<meta name="referrer" content="no-referrer">
+<style>
+/* ============================================================
+   灵图 · 手绘成真 — 主题变量
+   轻氧模式(oxygen, 默认)：蜜桃/薄荷/薰衣草/奶油
+   童趣模式(kid)：明黄/天蓝/草绿/珊瑚
+   ============================================================ */
+:root{
+  --max:860px;
+  --radius-lg:22px;
+  --radius-md:16px;
+  --radius-sm:12px;
+  --tap:44px;
+  --font:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Hiragino Sans GB",sans-serif;
+  --shadow:0 14px 40px rgba(70,55,80,.10);
+}
+[data-theme="oxygen"]{
+  --bg:#FFF9F4;
+  --bg2:#FDF1EC;
+  --panel:#FFFFFF;
+  --card:#FFFFFF;
+  --ink:#4A4453;
+  --muted:#8D8496;
+  --line:rgba(120,100,130,.16);
+  --accent:#E88AA5;         /* 蜜桃粉 */
+  --accent-strong:#D96A8B;
+  --accent-soft:#FDE3EC;
+  --mint:#8FD6BB;
+  --lav:#C9B8EC;
+  --cream:#FFF4E8;
+  --gold:#E9B949;
+  --danger:#E26D6D;
+  --paper:#FFFFFF;
+  --topbg:rgba(255,255,255,.78);
+  --grad:linear-gradient(135deg,#FDE3EC 0%,#E7F5EE 55%,#EFE8FB 100%);
+  --chip-radius:999px;
+  --card-radius:18px;
+}
+[data-theme="kid"]{
+  --bg:#FFFDF2;
+  --bg2:#FFF6D6;
+  --panel:#FFFFFF;
+  --card:#FFFFFF;
+  --ink:#3D3D3D;
+  --muted:#7A7A7A;
+  --line:rgba(60,60,60,.18);
+  --accent:#FF7E67;         /* 珊瑚粉 */
+  --accent-strong:#F2604A;
+  --accent-soft:#FFE3DC;
+  --mint:#7CC96E;           /* 草绿 */
+  --lav:#6DB8F2;            /* 天蓝 */
+  --cream:#FFD23F;          /* 明黄 */
+  --gold:#F5A623;
+  --danger:#E25555;
+  --paper:#FFFFFF;
+  --topbg:rgba(255,255,255,.9);
+  --grad:linear-gradient(135deg,#FFE9A8 0%,#BEE3FF 55%,#C9F2C0 100%);
+  --chip-radius:14px;
+  --card-radius:24px;
+}
+
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
+}
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden}
+body{
+  font-family:var(--font);
+  color:var(--ink);
+  background:var(--bg);
+  -webkit-font-smoothing:antialiased;
+  transition:background .35s ease;
+}
+#app{
+  margin:0 auto;width:min(var(--max),100%);height:100dvh;
+  display:grid;grid-template-rows:auto auto 1fr auto;gap:0;
+  background:var(--bg);position:relative;
+}
+
+/* ---------- Header ---------- */
+.top{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 14px;border-bottom:1px solid var(--line);
+  background:var(--topbg);backdrop-filter:blur(10px);
+}
+.brand{display:flex;align-items:center;gap:9px;min-width:0}
+.brand-mark{
+  width:38px;height:38px;flex:none;border-radius:13px;
+  background:var(--grad);display:grid;place-items:center;
+  box-shadow:0 4px 12px rgba(120,90,120,.18);
+}
+.brand-text h1{
+  margin:0;font-size:16px;font-weight:700;letter-spacing:.03em;white-space:nowrap;
+}
+.brand-text .sub{font-size:10.5px;color:var(--muted);letter-spacing:.12em;margin-top:1px;white-space:nowrap}
+.top-stats{display:flex;align-items:center;gap:6px;margin-left:4px}
+.stat-pill{
+  display:inline-flex;align-items:center;gap:3px;
+  height:34px;padding:0 11px;border-radius:999px;
+  background:var(--accent-soft);color:var(--ink);
+  font-size:13px;font-weight:700;cursor:pointer;border:1px solid transparent;
+  transition:transform .15s ease;
+}
+.stat-pill:hover{transform:scale(1.05)}
+.stat-pill.locked{color:var(--muted)}
+.top-actions{display:flex;gap:4px;margin-left:auto}
+.icon-btn{
+  width:var(--tap);height:var(--tap);min-width:var(--tap);
+  border-radius:12px;border:0;background:transparent;color:var(--muted);
+  display:grid;place-items:center;cursor:pointer;font-size:17px;
+  transition:background .15s,transform .15s;position:relative;
+}
+.icon-btn:hover{background:var(--accent-soft);color:var(--ink)}
+.icon-btn .dot{
+  position:absolute;top:6px;right:7px;width:8px;height:8px;border-radius:50%;
+  background:var(--accent);border:2px solid var(--bg);
+}
+.member-badge{
+  font-size:10px;font-weight:800;color:#fff;background:linear-gradient(135deg,var(--gold),var(--accent));
+  border-radius:999px;padding:2px 7px;margin-left:2px;
+}
+
+/* ---------- Step indicator ---------- */
+.steps{
+  display:flex;align-items:center;justify-content:center;gap:4px;
+  padding:8px 14px 6px;background:transparent;
+}
+.step{
+  display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted);
+  padding:4px 8px;border-radius:999px;white-space:nowrap;transition:all .3s;
+}
+.step .num{
+  width:20px;height:20px;border-radius:50%;display:grid;place-items:center;
+  background:var(--accent-soft);font-size:11px;font-weight:700;color:var(--muted);
+}
+.step.active{color:var(--accent-strong);font-weight:700}
+.step.active .num{background:var(--accent);color:#fff;transform:scale(1.12)}
+.step.done .num{background:var(--mint);color:#fff}
+.step-line{width:14px;height:1.5px;background:var(--line);border-radius:2px}
+
+/* ---------- Chat ---------- */
+.chat-wrap{position:relative;min-height:0;overflow:hidden;display:flex;flex-direction:column}
+#chatList{
+  flex:1;overflow-y:auto;overflow-x:hidden;
+  padding:12px 14px calc(16px);min-height:0;
+  display:flex;flex-direction:column;gap:12px;scroll-behavior:smooth;
+}
+.msg{
+  width:min(100%,92%);border:1px solid var(--line);
+  border-radius:var(--card-radius);padding:14px 16px;
+  background:var(--card);box-shadow:var(--shadow);
+  line-height:1.6;animation:pop .38s cubic-bezier(.2,.8,.3,1);
+}
+.msg.user{align-self:flex-end;background:var(--accent-soft);border-color:transparent}
+.msg.assistant{align-self:flex-start}
+.msg.user p{margin:0;white-space:pre-wrap;word-break:break-word}
+.meta{margin:0 0 4px;color:var(--muted);font-size:.74rem}
+.msg h4{margin:0 0 6px;font-size:.98rem;font-weight:700}
+.msg p{margin:0 0 4px;font-size:.93rem}
+.tiny{font-size:.78rem;color:var(--muted);line-height:1.55}
+.inline-badge{
+  position:absolute;right:12px;top:10px;font-size:.68rem;font-weight:700;
+  color:var(--accent-strong);background:var(--accent-soft);
+  padding:3px 9px;border-radius:999px;
+}
+.source-thumb{margin-top:8px;max-width:min(300px,100%);border-radius:var(--radius-sm);border:1px solid var(--line);display:block}
+.badge{font-size:.7rem;border:1px solid var(--line);border-radius:999px;padding:2px 9px;color:var(--muted)}
+.guard-flag{
+  position:fixed;left:10px;bottom:110px;z-index:20;
+  width:38px;height:38px;border-radius:50%;display:grid;place-items:center;
+  background:var(--panel);box-shadow:var(--shadow);font-size:18px;
+}
+
+/* ---------- Buttons ---------- */
+.btn{
+  border:1.5px solid var(--line);border-radius:14px;background:var(--card);
+  color:var(--ink);font:inherit;font-weight:600;padding:10px 15px;
+  cursor:pointer;line-height:1;min-height:var(--tap);
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  transition:transform .13s ease,box-shadow .13s ease,border-color .13s;
+}
+.btn:hover{transform:translateY(-2px) scale(1.01)}
+.btn:active{transform:scale(.97)}
+.btn.primary{
+  background:var(--accent);color:#fff;border-color:transparent;
+  box-shadow:0 8px 20px color-mix(in srgb,var(--accent) 35%,transparent);
+}
+.btn.primary:hover{background:var(--accent-strong)}
+.btn.ghost{background:transparent}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.btn.small{min-height:36px;padding:7px 12px;font-size:.83rem;border-radius:11px}
+.btn .lock{font-size:.85em}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.actions.end{justify-content:flex-end}
+
+/* ---------- Welcome ---------- */
+.welcome{width:100%;border:0;background:none;box-shadow:none;padding:8px 4px}
+.mascot-wrap{display:flex;justify-content:center;margin:6px 0 2px}
+.welcome-headline{
+  margin:6px 0 4px;text-align:center;font-size:clamp(22px,5vw,30px);
+  font-weight:800;letter-spacing:.02em;line-height:1.3;
+  background:linear-gradient(120deg,var(--accent-strong),var(--lav));
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+}
+.welcome-tip{margin:0 0 6px;text-align:center;color:var(--muted);font-size:.88rem}
+.daily-challenge{
+  margin:10px auto;max-width:420px;display:flex;align-items:center;gap:10px;
+  background:var(--cream);border:1.5px dashed var(--accent);border-radius:var(--radius-md);
+  padding:10px 14px;font-size:.86rem;
+}
+.daily-challenge.done{opacity:.7;border-style:solid}
+.daily-challenge .em{font-size:20px}
+.daily-challenge b{color:var(--accent-strong)}
+
+/* ---------- Sketch studio ---------- */
+.sketch-toolbar{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin:8px 0}
+.tool-group{display:flex;gap:5px;align-items:center;flex-wrap:wrap}
+.tool-label{font-size:11px;color:var(--muted);margin:0 2px}
+.color-dot{
+  width:30px;height:30px;border-radius:50%;border:2.5px solid #fff;
+  box-shadow:0 0 0 1.5px var(--line);cursor:pointer;padding:0;
+  transition:transform .12s;
+}
+.color-dot.sel{transform:scale(1.22);box-shadow:0 0 0 2px var(--accent)}
+.size-chip{
+  min-width:38px;height:32px;border-radius:10px;border:1.5px solid var(--line);
+  background:#fff;cursor:pointer;display:grid;place-items:center;
+}
+.size-chip.sel{border-color:var(--accent);background:var(--accent-soft)}
+.size-chip i{display:block;border-radius:50%;background:var(--ink)}
+.canvas-wrap{border:1px solid var(--line);border-radius:var(--radius-md);padding:8px;background:var(--bg2)}
+.canvas-shell{
+  position:relative;width:100%;border-radius:var(--radius-sm);
+  background:#fff;border:1px solid var(--line);touch-action:none;overflow:hidden;
+  height:clamp(180px,36vh,280px);
+}
+.canvas-shell canvas{width:100%;height:100%;display:block;touch-action:none}
+
+/* ---------- Composer ---------- */
+.composer{
+  display:flex;align-items:flex-end;gap:8px;
+  margin:8px 12px calc(12px + env(safe-area-inset-bottom));
+  padding:8px;border:1.5px solid var(--line);border-radius:20px;
+  background:var(--card);box-shadow:var(--shadow);
+}
+.composer textarea{
+  flex:1;min-height:44px;max-height:120px;border:0;outline:0;resize:none;
+  font:inherit;font-size:15px;line-height:24px;color:var(--ink);background:transparent;
+}
+.composer textarea::placeholder{color:var(--muted)}
+.tool-btn{
+  width:var(--tap);height:var(--tap);flex:none;border:0;border-radius:13px;
+  background:var(--accent-soft);color:var(--ink);display:grid;place-items:center;cursor:pointer;
+  font-size:17px;transition:transform .13s;
+}
+.tool-btn:hover{transform:scale(1.07)}
+.tool-btn.rec{background:var(--danger);color:#fff;animation:pulse 1.1s infinite}
+#sendBtn{
+  width:var(--tap);height:var(--tap);flex:none;border:0;border-radius:15px;
+  background:var(--accent);color:#fff;display:grid;place-items:center;cursor:pointer;
+  box-shadow:0 6px 16px color-mix(in srgb,var(--accent) 40%,transparent);
+  transition:transform .13s;
+}
+#sendBtn:hover{transform:scale(1.06)}
+
+/* ---------- Form fields in cards ---------- */
+label.field{display:block;font-size:.74rem;color:var(--muted);margin:9px 0 3px;font-weight:600}
+textarea.field,input.field,select.field{
+  width:100%;border:1.5px solid var(--line);border-radius:var(--radius-sm);
+  padding:9px 11px;font:inherit;color:var(--ink);background:#fff;
+}
+textarea.field{min-height:60px;resize:vertical}
+select.field{height:42px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.chip{
+  border:1.5px solid var(--line);background:#fff;border-radius:var(--chip-radius);
+  padding:6px 12px;font-size:.8rem;cursor:pointer;color:var(--ink);
+  transition:all .13s;min-height:34px;display:inline-flex;align-items:center;gap:4px;
+}
+.chip:hover{border-color:var(--accent);background:var(--accent-soft)}
+.chip.sel{background:var(--accent);color:#fff;border-color:transparent}
+.chip .lock{font-size:.8em}
+.row-inline{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.seg{display:inline-flex;border:1.5px solid var(--line);border-radius:12px;overflow:hidden}
+.seg button{
+  border:0;background:#fff;padding:8px 12px;font:inherit;font-size:.82rem;cursor:pointer;color:var(--muted);
+}
+.seg button.sel{background:var(--accent);color:#fff;font-weight:700}
+#nSeg .seg-n[data-sel="1"]{background:var(--accent);color:#fff;font-weight:700}
+.seg button .lock{margin-left:3px}
+
+/* ---------- Result ---------- */
+.result-grid{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.result-preview{width:100%;border-radius:var(--radius-md);border:1px solid var(--line);cursor:zoom-in;display:block;background:#fff}
+.result-toolbar{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+
+/* ---------- Loading / status ---------- */
+.loading-card{display:flex;flex-direction:column;align-items:center;gap:8px;padding:18px 10px;text-align:center}
+.loading-card .mini-mascot{width:74px;height:74px}
+.progress-dots{display:flex;gap:5px;justify-content:center;margin-top:4px}
+.progress-dots i{width:8px;height:8px;border-radius:50%;background:var(--accent);animation:bounce 1.2s infinite}
+.progress-dots i:nth-child(2){animation-delay:.18s}
+.progress-dots i:nth-child(3){animation-delay:.36s}
+/* 生图等待体验 */
+.gen-loading{text-align:center;padding:6px 0}
+.gen-mascot{width:88px;height:88px;margin:0 auto 6px}
+.gen-stage{font-size:14px;font-weight:700;color:var(--ink);margin-bottom:10px;min-height:20px}
+.gen-progress-wrap{width:210px;height:7px;background:var(--accent-soft);border-radius:999px;margin:0 auto 10px;overflow:hidden}
+.gen-progress-bar{height:100%;background:linear-gradient(90deg,var(--accent),var(--gold));border-radius:999px;transition:width 1s ease;width:0%}
+.gen-tip{font-size:11.5px;color:var(--muted);opacity:.75;min-height:16px;transition:opacity .4s}
+
+/* ---------- Overlays / sheets ---------- */
+.overlay{
+  position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;
+  padding:14px;background:rgba(50,40,60,.38);backdrop-filter:blur(3px);
+}
+.overlay.show{display:flex;animation:fadeIn .25s ease}
+.sheet{
+  width:min(560px,100%);max-height:90vh;overflow:auto;
+  background:var(--panel);border-radius:var(--radius-lg);padding:18px;
+  box-shadow:0 30px 80px rgba(40,30,50,.3);animation:sheetIn .3s cubic-bezier(.2,.8,.3,1);
+}
+.sheet h3{margin:0 0 4px;font-size:1.05rem;font-weight:800}
+.sheet .hint{font-size:.8rem;color:var(--muted);margin:4px 0 8px}
+.sheet-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;border-top:1px dashed var(--line);padding-top:12px}
+.sheet-actions .spacer{flex:1}
+.row{display:grid;gap:4px;margin-bottom:10px}
+
+/* onboarding */
+.onboard-dots{display:flex;gap:6px;justify-content:center;margin:10px 0}
+.onboard-dots i{width:8px;height:8px;border-radius:50%;background:var(--line)}
+.onboard-dots i.on{background:var(--accent);width:22px;border-radius:999px}
+.onboard-step{text-align:center;padding:6px}
+.onboard-step .mini-mascot{width:110px;height:110px;margin:0 auto 6px}
+.onboard-step h2{margin:4px 0;font-size:1.25rem}
+.onboard-step p{color:var(--muted);font-size:.9rem;line-height:1.6;margin:4px 0}
+
+/* pricing */
+.plans{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:10px}
+.plan{
+  border:1.5px solid var(--line);border-radius:var(--radius-md);padding:12px;
+  display:flex;flex-direction:column;gap:5px;cursor:pointer;transition:all .15s;background:#fff;
+}
+.plan.hot{border-color:var(--accent);background:var(--accent-soft);position:relative}
+.plan .pname{font-weight:800;font-size:.9rem}
+.plan .price{font-size:1.35rem;font-weight:800;color:var(--accent-strong)}
+.plan .price small{font-size:.68rem;color:var(--muted);font-weight:500}
+.plan ul{margin:4px 0 0;padding-left:16px;font-size:.74rem;color:var(--muted);line-height:1.7}
+.plan .tag{position:absolute;top:-9px;right:8px;background:var(--accent);color:#fff;font-size:.65rem;padding:2px 8px;border-radius:999px;font-weight:700}
+.feat-table{width:100%;border-collapse:collapse;font-size:.8rem;margin-top:10px}
+.feat-table th,.feat-table td{border-bottom:1px solid var(--line);padding:7px 6px;text-align:center}
+.feat-table th:first-child,.feat-table td:first-child{text-align:left}
+.feat-table .yes{color:var(--mint);font-weight:800}
+.feat-table .no{color:var(--muted)}
+
+/* achievements */
+.ach-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:9px;margin-top:10px}
+.ach{
+  border:1.5px solid var(--line);border-radius:var(--radius-md);padding:10px;text-align:center;
+  background:#fff;opacity:.55;filter:grayscale(.7);
+}
+.ach.unlocked{opacity:1;filter:none;border-color:var(--gold);background:#FFF8E8}
+.ach .ico{font-size:26px}
+.ach .an{font-size:.78rem;font-weight:700;margin-top:3px}
+.ach .ad{font-size:.68rem;color:var(--muted)}
+
+/* gallery */
+.gal-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-top:10px}
+.gal-item{position:relative;border-radius:var(--radius-sm);overflow:hidden;border:1px solid var(--line)}
+.gal-item img{width:100%;height:110px;object-fit:cover;display:block;cursor:zoom-in}
+.gal-del{
+  position:absolute;top:4px;right:4px;width:24px;height:24px;border-radius:50%;
+  background:rgba(0,0,0,.55);color:#fff;border:0;cursor:pointer;font-size:12px;
+}
+
+/* lightbox */
+.lightbox{position:fixed;inset:0;z-index:90;display:none;align-items:center;justify-content:center;background:rgba(20,15,25,.88);padding:20px}
+.lightbox.show{display:flex}
+.lightbox img{max-width:100%;max-height:100%;border-radius:10px}
+.lightbox .lb-close{position:absolute;top:16px;right:16px;color:#fff;font-size:30px;background:none;border:0;cursor:pointer}
+
+/* toast */
+#toastWrap{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);z-index:100;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none}
+.toast{
+  background:var(--ink);color:#fff;padding:11px 18px;border-radius:999px;font-size:.86rem;
+  box-shadow:0 10px 30px rgba(0,0,0,.25);animation:toastIn .35s ease;display:flex;gap:8px;align-items:center;max-width:88vw;
+}
+.toast.ach{background:linear-gradient(135deg,var(--gold),var(--accent));font-weight:700}
+
+/* confetti */
+.confetti{position:fixed;top:-12px;z-index:80;width:9px;height:14px;pointer-events:none;animation:fall linear forwards}
+
+/* toggle switch */
+.switch{position:relative;display:inline-block;width:48px;height:28px;flex:none}
+.switch input{opacity:0;width:0;height:0}
+.slider-tg{
+  position:absolute;inset:0;background:var(--line);border-radius:999px;transition:.25s;cursor:pointer;
+}
+.slider-tg::before{
+  content:"";position:absolute;height:22px;width:22px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.25s;box-shadow:0 2px 5px rgba(0,0,0,.2);
+}
+.switch input:checked + .slider-tg{background:var(--accent)}
+.switch input:checked + .slider-tg::before{transform:translateX(20px)}
+
+.setting-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px dashed var(--line)}
+.setting-row .lbl{font-size:.88rem}
+.setting-row .sub{font-size:.72rem;color:var(--muted)}
+
+.hidden{display:none!important}
+
+/* ============== animations ============== */
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes pop{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
+@keyframes sheetIn{from{opacity:0;transform:translateY(18px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(226,109,109,.5)}50%{box-shadow:0 0 0 9px rgba(226,109,109,0)}}
+@keyframes toastIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes fall{to{transform:translateY(110vh) rotate(720deg)}}
+@keyframes wiggle{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}
+.mini-mascot{animation:wiggle 2.4s ease-in-out infinite;transform-origin:center bottom}
+
+#statusArea{position:absolute;right:12px;top:12px;max-width:60%;z-index:5}
+#statusArea .status{
+  border-radius:10px;padding:7px 11px;background:var(--card);border:1px solid var(--line);
+  font-size:.74rem;color:var(--muted);box-shadow:var(--shadow);
+}
+#cancelBtn{position:absolute;left:50%;bottom:120px;transform:translateX(-50%);z-index:6;display:none}
+
+/* ============== responsive ============== */
+@media (max-width:560px){
+  #app{border-radius:0}
+  .top{padding:8px 10px;gap:6px}
+  .brand-text .sub{display:none}
+  .stat-pill{height:30px;padding:0 8px;font-size:12px}
+  .icon-btn{width:40px;height:40px;min-width:40px}
+  .step{font-size:10.5px;padding:3px 5px}
+  .step-line{width:8px}
+  .msg{width:96%}
+  .plans{grid-template-columns:1fr}
+  #chatList{padding:10px 10px}
+  .composer{margin:8px 10px calc(10px + env(safe-area-inset-bottom))}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- ===== Header ===== -->
+  <header class="top">
+    <div class="brand">
+      <div class="brand-mark" id="brandMark" aria-hidden="true"></div>
+      <div class="brand-text">
+        <h1>灵图 · 手绘成真</h1>
+        <div class="sub">一笔一画，遇见想象</div>
+      </div>
+    </div>
+    <div class="top-stats">
+      <button class="stat-pill" id="streakPill" title="连续创作"><span id="streakIcon"></span><span id="streakNum">0</span></button>
+      <button class="stat-pill" id="pointsPill" title="公开体验版说明"><span id="pointsIcon"></span><span id="pointsNum">体验版</span><span class="member-badge hidden" id="memberTag">PRO</span></button>
+    </div>
+    <div class="top-actions">
+      <button class="icon-btn" id="themeBtn" title="切换主题" aria-label="切换主题"></button>
+      <button class="icon-btn" id="achBtn" title="成就" aria-label="成就"><span class="dot hidden" id="achDot"></span></button>
+      <button class="icon-btn" id="galleryBtn" title="我的画廊" aria-label="画廊"></button>
+      <button class="icon-btn" id="newChat" title="新的一张" aria-label="新对话"></button>
+      <button class="icon-btn" id="settingsBtn" title="设置" aria-label="设置"></button>
+    </div>
+  </header>
+
+  <!-- ===== Step indicator ===== -->
+  <nav class="steps" id="stepBar" aria-label="创作进度">
+    <div class="step" data-step="1"><span class="num">1</span>草图</div>
+    <span class="step-line"></span>
+    <div class="step" data-step="2"><span class="num">2</span>确认想法</div>
+    <span class="step-line"></span>
+    <div class="step" data-step="3"><span class="num">3</span>确认画面</div>
+    <span class="step-line"></span>
+    <div class="step" data-step="4"><span class="num">4</span>生成</div>
+  </nav>
+
+  <!-- ===== Chat ===== -->
+  <main class="chat-wrap">
+    <div id="statusArea"></div>
+    <div id="chatList" role="log" aria-live="polite"></div>
+
+    <div class="composer" id="composer">
+      <button class="tool-btn" id="quickUploadBtn" title="上传照片" aria-label="上传照片"></button>
+      <button class="tool-btn" id="quickCameraBtn" title="拍照" aria-label="拍照"></button>
+      <button class="tool-btn" id="quickSketchBtn" title="画一张" aria-label="画一张"></button>
+      <textarea id="composerInput" placeholder="聊聊你的想法…" aria-label="聊天输入"></textarea>
+      <button class="tool-btn hidden" id="micBtn" title="语音输入" aria-label="语音输入">🎤</button>
+      <button id="sendBtn" aria-label="发送">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 12h15M13 6l6 6-6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+    <button id="cancelBtn" class="btn small">取消生成</button>
+  </main>
+</div>
+
+<!-- 家长模式安全标识 -->
+<div class="guard-flag hidden" id="guardFlag" title="安全内容过滤已开启">🛡️</div>
+
+<!-- ===== 设置面板 ===== -->
+<div class="overlay" id="settingsPanel" role="dialog" aria-modal="true">
+  <div class="sheet">
+    <h3>设置</h3>
+    <p class="hint">公开体验版：请连接你自己的模型服务。密钥仅保留在当前页面内存中，刷新或关闭后清空；调用时会发送给你配置的服务商。草图和描述也会发送给该服务商，使用费用由服务商收取。</p>
+
+    <div class="row"><label>视觉 base</label><input class="field" id="visionBase" type="text" placeholder="https://ai.cangyuansuanli.cn/v1" /></div>
+    <div class="row"><label>vision model（逗号分隔按序降级）</label><input class="field" id="visionModel" type="text" placeholder="gpt-5.6-terra,gpt-5.6-sol,gpt-5.5" /></div>
+    <div class="row"><label>vision key</label><input class="field" id="visionKey" type="password" autocomplete="off" /></div>
+    <div class="row"><label>image edit base</label><input class="field" id="imageBase" type="text" placeholder="https://ai.cangyuansuanli.cn/v1" /></div>
+    <div class="row"><label>image model（逗号分隔按序降级）</label><input class="field" id="imageModel" type="text" value="gpt-image-2.5,nano-banana2-1k,nano-banana-pro-1k,gpt-image-2" /></div>
+    <div class="row"><label>image key</label><input class="field" id="imageKey" type="password" autocomplete="off" /></div>
+
+    <div class="setting-row">
+      <div><div class="lbl">🛡️ 家长监护模式</div><div class="sub">隐藏分享 · 每日限 5 张 · 本机内容过滤</div></div>
+      <label class="switch"><input type="checkbox" id="parentToggle" /><span class="slider-tg"></span></label>
+    </div>
+    <div class="setting-row" id="pinRow">
+      <div><div class="lbl">家长密码</div><div class="sub">默认 1234，仅用于本机原型设置</div></div>
+      <input class="field" id="pinInput" type="text" inputmode="numeric" style="width:120px" placeholder="1234" />
+    </div>
+
+    <div class="sheet-actions">
+      <button class="btn" id="settingsClose">关闭</button>
+      <button class="btn" id="settingsClear">清空 Keys</button>
+      <button class="btn primary" id="settingsSave">保存</button>
+    </div>
+    <div class="hint" id="settingsMsg"></div>
+  </div>
+</div>
+
+<!-- ===== 新手引导 ===== -->
+<div class="overlay" id="onboardPanel" role="dialog" aria-modal="true">
+  <div class="sheet" style="text-align:center">
+    <div id="onboardBody"></div>
+    <div class="onboard-dots" id="onboardDots"></div>
+    <div class="sheet-actions" style="justify-content:center">
+      <button class="btn ghost" id="onboardSkip">跳过</button>
+      <button class="btn primary" id="onboardNext">开始创作</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 公开体验版说明 ===== -->
+<div class="overlay" id="upgradePanel" role="dialog" aria-modal="true">
+  <div class="sheet">
+    <h3 id="upgradeTitle">灵图 · 公开体验版</h3>
+    <p class="hint" id="upgradeHint">上传或绘制草图，确认想法、编辑提示词，再生成图片。请先在设置中填写你自己的模型服务与密钥，实际调用费用由服务商收取。</p>
+    <p class="hint">本页不提供会员购买或广告奖励。部分高级功能仍在完善，账号云同步、高清处理和举报服务尚未接通。作品与创作进度保存在当前设备。</p>
+    <div class="sheet-actions"><button class="btn primary" id="upgradeClose">知道了</button></div>
+  </div>
+</div>
+
+<!-- ===== 成就面板 ===== -->
+<div class="overlay" id="achPanel" role="dialog" aria-modal="true">
+  <div class="sheet">
+    <h3>🏅 我的成就</h3>
+    <p class="hint">每一次创作，都在点亮新徽章。</p>
+    <div class="ach-grid" id="achGrid"></div>
+    <div class="sheet-actions"><button class="btn" id="achClose">关闭</button></div>
+  </div>
+</div>
+
+<!-- ===== 画廊 ===== -->
+<div class="overlay" id="galPanel" role="dialog" aria-modal="true">
+  <div class="sheet">
+    <h3>🖼️ 我的画廊</h3>
+    <p class="hint">最多保存 20 张作品，仅存于你的设备。</p>
+    <div class="gal-grid" id="galGrid"></div>
+    <div class="sheet-actions"><button class="btn" id="galClose">关闭</button></div>
+  </div>
+</div>
+
+<!-- ===== 举报 ===== -->
+<div class="overlay" id="reportPanel" role="dialog" aria-modal="true">
+  <div class="sheet" style="max-width:380px">
+    <h3>举报这张图</h3>
+    <p class="hint">举报服务尚未接通，本页不会提交举报。请联系你配置的模型服务商。</p>
+    <div class="chips" id="reportReasons">
+      <button class="chip" data-r="不适宜内容">不适宜内容</button>
+      <button class="chip" data-r="侵犯版权">侵犯版权</button>
+      <button class="chip" data-r="其他">其他</button>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn" id="reportCancel">取消</button>
+      <button class="btn primary" id="reportSend" disabled>举报服务未接通</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 家长 PIN 输入 ===== -->
+<div class="overlay" id="pinPanel" role="dialog" aria-modal="true">
+  <div class="sheet" style="max-width:340px;text-align:center">
+    <h3>👪 家长验证</h3>
+    <p class="hint">家长模式已开启，此操作需要家长密码。</p>
+    <input class="field" id="pinEntry" type="password" inputmode="numeric" style="text-align:center;font-size:22px;letter-spacing:8px" placeholder="••••" maxlength="8" />
+    <div class="sheet-actions" style="justify-content:center">
+      <button class="btn" id="pinCancel">取消</button>
+      <button class="btn primary" id="pinOk">确认</button>
+    </div>
+    <div class="hint" id="pinMsg"></div>
+  </div>
+</div>
+
+<div class="lightbox" id="lightbox"><button class="lb-close" id="lbClose">×</button><img id="lbImg" alt="预览" /></div>
+<div id="toastWrap"></div>
+
+<input id="uploadInput" class="hidden" type="file" accept="image/png,image/jpeg,image/webp">
+<input id="cameraInput" class="hidden" type="file" accept="image/png,image/jpeg,image/webp" capture="environment">
+
+<script>
+/* CHUNK1_START */
+(() => {
+  const $ = (s) => document.querySelector(s);
+  const $$ = (s) => Array.from(document.querySelectorAll(s));
+  const p = (m) => String(m ?? '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+  const store = {
+    get(k, dft){ try { const v = localStorage.getItem('lingtu_' + k); return v == null ? dft : JSON.parse(v); } catch { return dft; } },
+    set(k, v){ try { localStorage.setItem('lingtu_' + k, JSON.stringify(v)); } catch {} }
+  };
+  const todayKey = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); };
+  function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+    /* 敏感词过滤（运行期拼接，避免源码暴露） */
+  const BANNED_WORDS = [
+    '暴'+'力','凶'+'杀','砍'+'人','血'+'腥','虐'+'待','自'+'残','枪'+'支','炸'+'弹','恐'+'怖',
+    '裸'+'体','色'+'情','卖'+'淫','嫖'+'娼','黄'+'色','低'+'俗',
+    '毒'+'品','海'+'洛'+'因','冰'+'毒','大'+'麻','制'+'毒','贩'+'毒',
+    '赌'+'博','洗'+'钱','诈'+'骗','走'+'私','爆'+'炸物'
+  ];
+  function findBanned(text){
+    if(!text) return null;
+    const t = String(text).toLowerCase();
+    for(const w of BANNED_WORDS){ if(t.indexOf(w.toLowerCase()) !== -1) return w; }
+    return null;
+  }
+
+  /* ---------- 线性图标系统（24x24, 1.8px stroke, currentColor） ---------- */
+  function icon(name, size){
+    size = size || 20;
+    const s = 'width:'+size+'px;height:'+size+'px;display:block';
+    const P = {
+      palette: '<path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.9 0 1.6-.7 1.6-1.7 0-.4-.2-.8-.4-1.1-.3-.3-.4-.7-.4-1.1 0-.9.8-1.7 1.7-1.7h2c3 0 5.5-2.5 5.5-5.5C22 6 17.5 2 12 2z"/><circle cx="6.5" cy="11.5" r="1" fill="currentColor" stroke="none"/><circle cx="9.5" cy="7.5" r="1" fill="currentColor" stroke="none"/><circle cx="14.5" cy="7.5" r="1" fill="currentColor" stroke="none"/><circle cx="17.5" cy="11.5" r="1" fill="currentColor" stroke="none"/>',
+      award: '<circle cx="12" cy="9" r="5"/><path d="M15.5 13.5 17 21l-5-2.5L7 21l1.5-7.5"/>',
+      image: '<rect x="3" y="3" width="18" height="18" rx="2.5"/><circle cx="9" cy="9.5" r="1.8"/><path d="m21 15-4.5-4.5a2 2 0 0 0-2.8 0L6 18"/>',
+      sparkles: '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 15l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z"/><path d="M5 3l.6 1.7L7.3 5.3 5.6 6 5 7.7 4.4 6 2.7 5.3 4.4 4.6z"/>',
+      settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+      upload: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>',
+      camera: '<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3.2"/>',
+      pencil: '<path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/><path d="m15 5 4 4"/>',
+      wand: '<path d="M15 4V2"/><path d="M15 16v-2"/><path d="M8 9h2"/><path d="M20 9h2"/><path d="M17.8 11.8 19 13"/><path d="M15 9h.01"/><path d="M17.8 6.2 19 5"/><path d="m3 21 9-9"/><path d="M12.2 6.2 11 5"/>',
+      flame: '<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>'
+    };
+    const p = P[name] || P.sparkles;
+    return '<svg viewBox="0 0 24 24" style="'+s+'" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+p+'</svg>';
+  }
+
+  /* ---------- 品牌 Logo（简洁铅笔造型） ---------- */
+  function brandLogo(size){
+    size = size || 36;
+    return '<svg viewBox="0 0 48 48" width="'+size+'" height="'+size+'" aria-hidden="true">'
+      + '<defs><linearGradient id="lg1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF8E72"/><stop offset="1" stop-color="#FFB088"/></linearGradient></defs>'
+      + '<circle cx="24" cy="24" r="22" fill="url(#lg1)"/>'
+      + '<g transform="rotate(-12 24 24)">'
+      + '<rect x="19" y="14" width="10" height="19" rx="1.5" fill="#ffffff"/>'
+      + '<path d="M19 14 L24 6 L29 14 Z" fill="#F0D9B5"/>'
+      + '<path d="M22.2 10.5 L24 6 L25.8 10.5 Z" fill="#2C2C2C"/>'
+      + '<rect x="19" y="31" width="10" height="2.5" fill="#E9B949"/>'
+      + '<rect x="19" y="33.5" width="10" height="4.5" rx="1.5" fill="#FF6B6B"/>'
+      + '</g>'
+      + '<path d="M37 11 l1.1 2.2 2.2 1.1 -2.2 1.1 -1.1 2.2 -1.1-2.2 -2.2-1.1 2.2-1.1z" fill="#FFD23F"/>'
+      + '</svg>';
+  }
+
+  /* ---------- 吉祥物 SVG（精致版） ---------- */
+  function mascot(mood){
+    mood = mood || 'happy';
+    let mouthPath = 'M90 115 Q100 124 110 115', brows = '', deco = '';
+    if(mood === 'think'){
+      mouthPath = 'M92 117 Q98 113 104 117';
+      brows = '<path d="M84 98 Q90 94 96 98" stroke="#444" stroke-width="2.2" fill="none" stroke-linecap="round"/><path d="M104 98 Q110 94 116 98" stroke="#444" stroke-width="2.2" fill="none" stroke-linecap="round"/>';
+      deco = '<circle cx="142" cy="68" r="3" fill="#b8b0c4"/><circle cx="151" cy="56" r="3.6" fill="#b8b0c4" opacity=".7"/><circle cx="161" cy="42" r="4.4" fill="#b8b0c4" opacity=".4"/>';
+    }
+    if(mood === 'celebrate'){
+      mouthPath = '<path d="M88 113 Q100 130 112 113 Z" fill="#7a3b4b"/>';
+      deco = '<path d="M52 52 l3 6 6 3 -6 3 -3 6 -3-6 -6-3 6-3z" fill="#FFD23F"/><path d="M148 56 l2.6 5.2 5.2 2.6 -5.2 2.6 -2.6 5.2 -2.6-5.2 -5.2-2.6 5.2-2.6z" fill="#E88AA5"/><path d="M156 108 l2 4 4 2 -4 2 -2 4 -2-4 -4-2 4-2z" fill="#8FD6BB"/>';
+    }
+    const mouthTag = (mood === 'celebrate') ? mouthPath : '<path d="'+mouthPath+'" stroke="#7a3b4b" stroke-width="2.6" fill="none" stroke-linecap="round"/>';
+    return '<svg viewBox="0 0 200 200" class="mini-mascot" width="100%" height="100%" aria-hidden="true">'
+      + '<ellipse cx="100" cy="176" rx="38" ry="7" fill="rgba(0,0,0,.08)"/>' + deco
+      + '<g transform="translate(0,4)">'
+      + '<path d="M90 36 L100 20 L110 36 Z" fill="#2C2C2C"/>'
+      + '<path d="M80 58 L100 36 L120 58 Z" fill="#F0D9B5"/>'
+      + '<rect x="80" y="58" width="40" height="9" fill="#E9B949"/>'
+      + '<rect x="76" y="67" width="48" height="73" rx="6" fill="#ffffff"/>'
+      + '<rect x="76" y="67" width="14" height="73" rx="6" fill="#f0f0f0" opacity=".6"/>'
+      + '<circle cx="82" cy="106" r="5.5" fill="#FF9EB0" opacity=".55"/><circle cx="118" cy="106" r="5.5" fill="#FF9EB0" opacity=".55"/>'
+      + '<circle cx="90" cy="96" r="4.4" fill="#3a3242"/><circle cx="110" cy="96" r="4.4" fill="#3a3242"/>'
+      + '<circle cx="91.5" cy="94.5" r="1.5" fill="#fff"/><circle cx="111.5" cy="94.5" r="1.5" fill="#fff"/>'
+      + brows + mouthTag
+      + '<rect x="76" y="140" width="48" height="20" rx="6" fill="#FF8E72"/>'
+      + '<rect x="76" y="140" width="48" height="6" rx="3" fill="#FF6B6B" opacity=".5"/>'
+      + '</g></svg>';
+  }
+
+  /* ---------- Toast / 彩纸 ---------- */
+  function toast(msg, type){
+    const t = document.createElement('div');
+    t.className = 'toast' + (type ? ' ' + type : '');
+    t.innerHTML = msg;
+    $('#toastWrap').appendChild(t);
+    setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity .4s'; }, 2400);
+    setTimeout(() => t.remove(), 2900);
+  }
+  function confetti(){
+    if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const colors = ['#FF7E67','#FFD23F','#7CC96E','#6DB8F2','#C99BF2','#E88AA5'];
+    for(let i = 0; i < 36; i++){
+      const c = document.createElement('i');
+      c.className = 'confetti';
+      c.style.left = Math.random() * 100 + 'vw';
+      c.style.background = colors[i % colors.length];
+      c.style.animationDuration = (1.6 + Math.random() * 1.8) + 's';
+      c.style.animationDelay = (Math.random() * .4) + 's';
+      document.body.appendChild(c);
+      setTimeout(() => c.remove(), 3800);
+    }
+  }
+
+  /* ---------- 常量 ---------- */
+  const RATIO = [
+    { v:'16:9', s:'1024x576', label:'横向 16:9' },
+    { v:'4:3',  s:'1024x768', label:'4:3' },
+    { v:'1:1',  s:'1024x1024',label:'正方形 1:1' },
+    { v:'9:16', s:'576x1024', label:'竖屏 9:16' }
+  ];
+  const BRUSH_COLORS = ['#292C2C','#E25555','#3B7DD8','#4CAF50','#8E5BD0'];
+  const BRUSH_SIZES = [ {k:'thin',label:'细',w:0.005},{k:'mid',label:'中',w:0.009},{k:'thick',label:'粗',w:0.016} ];
+  const STYLE_CHIPS = [
+    { name:'写实照片', v:'逼真写实摄影，照片级真实感，自然光影，细节丰富，高清质感' },
+    { name:'水彩', v:'清新透明的水彩插画，柔和晕染' },
+    { name:'油画', v:'厚重笔触的油画质感，色彩浓郁' },
+    { name:'二次元', v:'日系二次元动漫风格，干净线条' },
+    { name:'像素风', v:'8-bit 像素艺术风格，复古游戏感' },
+    { name:'3D渲染', v:'精致 3D 渲染，柔和光影', pro:true },
+    { name:'手账风', v:'可爱手账贴纸风格，温馨治愈' },
+    { name:'贴纸风', v:'卡通贴纸风格，白边描边' },
+    { name:'治愈插画', v:'治愈系儿童插画，温暖软萌' },
+    { name:'赛博朋克', v:'赛博朋克霓虹风格，未来都市', pro:true },
+    { name:'国风水墨', v:'中国风水墨写意，留白意境' }
+  ];
+  const DAILY_THEMES = ['画一只会飞的猫','画一条住在云里的鱼','画一只戴帽子的小恐龙','画一座糖果城堡','画一只在月亮上钓鱼的兔子','画会说话的小火车','画一片倒着长的森林','画一只穿围裙的小狐狸','画一艘在牛奶海里的纸船','画一颗会跳舞的星星','画一个住在茶壶里的小精灵','画一头背着房子的蜗牛','画一只给月亮写信的小熊','画彩虹滑梯','画一只爱吃冰淇淋的云朵','画海底的生日派对'];
+
+  /* ---------- 全局状态（密钥仅内存） ---------- */
+  const state = {
+    sourceSeq: 0, requestSeq: 0,
+    sourceBlob: null, sourceDataUrl: '', sourceName: '', sourceKind: 'none',
+    draft: null, draftNode: null, intent: null, promptDraft: null,
+    stage: 'source', genCount: 1, lastResultUrls: [],
+    busyVision: false, busyGenerate: false,
+    visionController: null, generateController: null,
+    visionConfig: { base:'https://ai.cangyuansuanli.cn/v1', model:'gpt-5.6-terra,gpt-5.6-sol,gpt-5.5', key:'' },
+    imageConfig:  { base:'https://ai.cangyuansuanli.cn/v1',  model:'gpt-image-2.5,nano-banana2-1k,nano-banana-pro-1k,gpt-image-2', key:'' },
+    sketchStudio: {
+      canvas:null, ctx:null, tool:'pen', color:BRUSH_COLORS[0], sizeKey:'mid',
+      paths:[], undone:[], drawing:false, pointerId:null, currentStroke:null,
+      width:0, height:0, dpr:1, dirty:false, base:{w:0,h:0}, commitBtn:null
+    }
+  };
+
+  /* ---------- 商业化 / 用户钩子 ---------- */
+  const gam = {
+    get points(){ return store.get('points', 5); },
+    set points(v){ store.set('points', Math.max(0, v)); },
+    get member(){ return store.get('member', false); },
+    set member(v){ store.set('member', !!v); },
+    get streak(){ return store.get('streak', 0); },
+    set streak(v){ store.set('streak', v); },
+    get lastDay(){ return store.get('lastDay', ''); },
+    set lastDay(v){ store.set('lastDay', v); },
+    get totalGen(){ return store.get('totalGen', 0); },
+    set totalGen(v){ store.set('totalGen', v); },
+    get usedStyles(){ return store.get('usedStyles', []); },
+    set usedStyles(v){ store.set('usedStyles', v); },
+    get unlockedAchs(){ return store.get('unlockedAchs', []); },
+    set unlockedAchs(v){ store.set('unlockedAchs', v); },
+    get gallery(){ return store.get('gallery', []); },
+    set gallery(v){ store.set('gallery', v.slice(0, 20)); },
+    get parentMode(){ return store.get('parent', false); },
+    set parentMode(v){ store.set('parent', !!v); },
+    get pin(){ return store.get('pin', '1234'); }
+  };
+  const ACHIEVEMENTS = [
+    { id:'first',   ico:'🎨', name:'初次创作', desc:'生成第一张画' },
+    { id:'streak3', ico:'🔥', name:'小有所成', desc:'连续创作 3 天' },
+    { id:'streak7', ico:'🌟', name:'灵感不息', desc:'连续创作 7 天' },
+    { id:'style5',  ico:'🎭', name:'百变画风', desc:'尝试 5 种不同风格' },
+    { id:'gen10',   ico:'🖼️', name:'创作达人', desc:'累计生成 10 张画' },
+    { id:'share',   ico:'💌', name:'分享快乐', desc:'分享过一次作品' },
+    { id:'daily',   ico:'📅', name:'每日一画', desc:'完成一次每日挑战' },
+    { id:'hd',      ico:'💎', name:'高清探索者', desc:'打开过一次高清版' },
+    { id:'redo',    ico:'🔁', name:'再来一张', desc:'使用再来一张' },
+    { id:'gallery10',ico:'🗂️', name:'小小收藏家', desc:'画廊保存 10 张作品' }
+  ];
+  function refreshHUD(){
+    $('#streakNum').textContent = gam.streak;
+    $('#pointsNum').textContent = '体验版';
+    $('#memberTag').classList.add('hidden');
+    $('#guardFlag').classList.toggle('hidden', !gam.parentMode);
+    $('#achDot').classList.toggle('hidden', !store.get('freshAch', false));
+  }
+  function unlockAch(id){
+    if (gam.unlockedAchs.indexOf(id) !== -1) return;
+    const list = gam.unlockedAchs; list.push(id); gam.unlockedAchs = list;
+    const a = ACHIEVEMENTS.find(x => x.id === id);
+    if (a){
+      confetti();
+      toast(a.ico + ' 成就达成：' + a.name, 'ach');
+      store.set('freshAch', true);
+      refreshHUD();
+    }
+  }
+  function dailyTheme(){
+    const now = new Date();
+    const start = new Date(now.getFullYear(), 0, 0);
+    const doy = Math.floor((now - start) / 86400000);
+    return DAILY_THEMES[doy % DAILY_THEMES.length];
+  }
+  function isDailyDone(){ return store.get('daily_' + todayKey(), false); }
+  function markDailyDone(){ store.set('daily_' + todayKey(), true); }
+  function afterGenerated(meta){
+    gam.totalGen += 1;
+    const today = todayKey();
+    const y = new Date(Date.now() - 86400000);
+    const yKey = y.getFullYear() + '-' + String(y.getMonth()+1).padStart(2,'0') + '-' + String(y.getDate()).padStart(2,'0');
+    if (gam.lastDay !== today){
+      gam.streak = (gam.lastDay === yKey) ? gam.streak + 1 : 1;
+      gam.lastDay = today;
+    }
+    if (meta && meta.style){
+      const s = gam.usedStyles;
+      if (s.indexOf(meta.style) === -1){ s.push(meta.style); gam.usedStyles = s; }
+    }
+    unlockAch('first');
+    if (gam.streak >= 3) unlockAch('streak3');
+    if (gam.streak >= 7) unlockAch('streak7');
+    if (gam.usedStyles.length >= 5) unlockAch('style5');
+    if (gam.totalGen >= 10) unlockAch('gen10');
+    if (isDailyDone()) unlockAch('daily');
+    refreshHUD();
+  }
+  function consumePointsIfAllowed(){
+    if (gam.parentMode){
+      const k = 'genToday_' + todayKey();
+      const n = store.get(k, 0);
+      if (n >= 5){ toast('👪 家长模式：今日创作次数已用完，明天再来吧'); return false; }
+      store.set(k, n + 1);
+    }
+    // Public preview uses the visitor's own model service; no simulated credits.
+    refreshHUD();
+    return true;
+  }
+/* LINGTU_MARK_A */
+  /* ---------- 主题切换 ---------- */
+  function applyTheme(t){ document.documentElement.setAttribute('data-theme', t); store.set('theme', t); }
+  function initTheme(){
+    const saved = store.get('theme', 'oxygen');
+    applyTheme(saved);
+    $('#themeBtn').innerHTML = icon('palette', 20);
+  }
+  $('#themeBtn').addEventListener('click', () => {
+    const cur = document.documentElement.getAttribute('data-theme');
+    const next = cur === 'kid' ? 'oxygen' : 'kid';
+    applyTheme(next);
+    $('#themeBtn').innerHTML = icon('palette', 20);
+    toast(next === 'kid' ? '已切换到童趣模式' : '已切换到轻氧模式');
+  });
+
+  /* ---------- 新手引导 ---------- */
+  const ONBOARD_STEPS = [
+    { mood:'happy', title:'嗨，我是小画笔精灵', desc:'在这里，你只要随便画几笔，我就能看懂你想画什么。' },
+    { mood:'think', title:'告诉 AI 你的想法', desc:'上传一张照片，或在画布上画一笔，再聊聊你的小创意。' },
+    { mood:'celebrate', title:'得到一幅真正的画', desc:'确认想法、确认画面，一键生成。画廊和创作进度保存在这台设备；草图与描述会发送给你配置的模型服务商。请先在设置中连接模型。' }
+  ];
+  let onboardIdx = 0;
+  function renderOnboard(){
+    const s = ONBOARD_STEPS[onboardIdx];
+    $('#onboardBody').innerHTML =
+      '<div class="onboard-step"><div style="width:120px;height:120px;margin:0 auto">' + mascot(s.mood) + '</div>'
+      + '<h2>' + s.title + '</h2><p>' + s.desc + '</p></div>';
+    $('#onboardDots').innerHTML = ONBOARD_STEPS.map((_, i) => '<i class="' + (i === onboardIdx ? 'on' : '') + '"></i>').join('');
+    $('#onboardNext').textContent = onboardIdx === ONBOARD_STEPS.length - 1 ? '开始创作' : '下一步';
+    $('#onboardSkip').style.visibility = onboardIdx === 0 ? 'visible' : 'hidden';
+  }
+  function initOnboarding(){
+    if (store.get('onboarded', false)) return;
+    onboardIdx = 0; renderOnboard();
+    $('#onboardPanel').classList.add('show');
+  }
+  $('#onboardNext').addEventListener('click', () => {
+    if (onboardIdx < ONBOARD_STEPS.length - 1){ onboardIdx++; renderOnboard(); }
+    else { store.set('onboarded', true); $('#onboardPanel').classList.remove('show'); }
+  });
+  $('#onboardSkip').addEventListener('click', () => {
+    store.set('onboarded', true); $('#onboardPanel').classList.remove('show');
+  });
+
+  /* ---------- 步骤指示器 ---------- */
+  function setStep(n){
+    $$('#stepBar .step').forEach((el, i) => {
+      const idx = i + 1;
+      el.classList.toggle('active', idx === n);
+      el.classList.toggle('done', idx < n);
+    });
+  }
+
+  /* ---------- 聊天辅助 ---------- */
+  let statusTimer = 0;
+  function setStatus(text){
+    const box = $('#statusArea');
+    clearTimeout(statusTimer);
+    if (!text){ box.innerHTML = ''; return; }
+    box.innerHTML = '<div class="status">' + p(text) + '</div>';
+    statusTimer = setTimeout(() => { box.innerHTML = ''; }, 3200);
+  }
+  function addMsg(role, html){
+    if (role === 'user'){ const w = $('#chatList .welcome-message'); if (w) w.remove(); }
+    const box = document.createElement('div');
+    box.className = 'msg ' + role;
+    box.innerHTML = html;
+    $('#chatList').appendChild(box);
+    $('#chatList').scrollTop = $('#chatList').scrollHeight;
+    return box;
+  }
+  function addGuide(msg){ addMsg('assistant', '<p class="tiny">' + p(msg) + '</p>'); }
+  function addUserImageBubble(url, name){
+    addMsg('user', '<div class="meta">草图' + (name ? '：' + p(name) : '') + '</div><span class="badge">图片来源</span><img class="source-thumb" src="' + url + '" alt="草图来源图"/>');
+  }
+/* LINGTU_MARK_B */
+  /* ---------- 欢迎页 & 画布 ---------- */
+  function buildWelcomeHTML(){
+    const done = isDailyDone();
+    return '<div class="welcome-studio">'
+      + '<div class="mascot-wrap" style="width:110px;height:110px;margin:0 auto">' + mascot('happy') + '</div>'
+      + '<h2 class="welcome-headline">把草图，画成真</h2>'
+      + '<p class="welcome-tip">随便画几笔，或上传一张照片，剩下的交给我 ✨</p>'
+      + '<div class="daily-challenge' + (done ? ' done' : '') + '">'
+      +   '<span class="em">' + (done ? '✅' : '📌') + '</span>'
+      +   '<div>今日挑战：<b>' + dailyTheme() + '</b><br><span class="tiny">' + (done ? '今天已完成，真棒！' : '画完会自动打卡哦') + '</span></div>'
+      + '</div>'
+      + '<div class="sketch-toolbar" role="toolbar">'
+      +   '<div class="tool-group"><span class="tool-label">工具</span>'
+      +     '<button class="btn small" id="toolPenBtn">🖌️ 画笔</button>'
+      +     '<button class="btn small" id="toolEraserBtn">🧽 橡皮</button>'
+      +   '</div>'
+      +   '<div class="tool-group">'
+      +     '<button class="btn small" id="undoBtn">↩️ 撤销</button>'
+      +     '<button class="btn small" id="redoBtn">↪️ 重做</button>'
+      +     '<button class="btn small" id="clearBtn">🗑️ 清空</button>'
+      +   '</div>'
+      + '</div>'
+      + '<div class="sketch-toolbar" role="toolbar">'
+      +   '<div class="tool-group"><span class="tool-label">颜色</span>'
+      +     BRUSH_COLORS.map((c, i) => '<button class="color-dot' + (i === 0 ? ' sel' : '') + '" data-color="' + c + '" style="background:' + c + '" aria-label="颜色"></button>').join('')
+      +   '</div>'
+      +   '<div class="tool-group"><span class="tool-label">粗细</span>'
+      +     BRUSH_SIZES.map((s, i) => '<button class="size-chip' + (i === 1 ? ' sel' : '') + '" data-size="' + s.k + '" aria-label="' + s.label + '"><i style="width:' + (s.w * 160) + 'px;height:' + (s.w * 160) + 'px"></i></button>').join('')
+      +   '</div>'
+      + '</div>'
+      + '<div class="canvas-wrap"><div class="canvas-shell"><canvas id="sketchCanvas" aria-label="手绘草图区域"></canvas></div></div>'
+      + '<div class="actions end"><button class="btn primary" id="commitSketchBtn" disabled>用这张草图 →</button></div>'
+      + '</div>';
+  }
+  function renderWelcomeStudio(preserveChat){
+    if (!preserveChat){ $('#chatList').innerHTML = ''; }
+    else { const ex = $('#chatList .welcome-message'); if (ex) ex.remove(); }
+    const welcome = addMsg('assistant', buildWelcomeHTML());
+    welcome.classList.add('welcome-message');
+    initSketchCanvas(welcome);
+    setStep(1);
+    requestAnimationFrame(() => {
+      if (preserveChat) welcome.querySelector('#sketchCanvas')?.scrollIntoView({ block:'center' });
+      else $('#chatList').scrollTop = 0;
+    });
+    return welcome;
+  }
+  function addWelcome(){ renderWelcomeStudio(false); }
+
+  let sketchResizeFrame = 0;
+  window.addEventListener('resize', () => {
+    cancelAnimationFrame(sketchResizeFrame);
+    sketchResizeFrame = requestAnimationFrame(() => refreshSketchCanvas(false));
+  });
+
+  function initSketchCanvas(welcome){
+    const s = state.sketchStudio;
+    s.canvas = welcome.querySelector('#sketchCanvas');
+    s.ctx = s.canvas.getContext('2d');
+    s.tool = 'pen'; s.color = BRUSH_COLORS[0]; s.sizeKey = 'mid';
+    s.paths = []; s.undone = []; s.dirty = false; s.drawing = false;
+    s.base = { w:0, h:0 };
+    s.commitBtn = welcome.querySelector('#commitSketchBtn');
+    bindSketchControls(welcome);
+    refreshSketchCanvas(true);
+    updateSketchSubmissionState();
+  }
+  function currentStrokeW(){
+    const sz = BRUSH_SIZES.find(x => x.k === state.sketchStudio.sizeKey) || BRUSH_SIZES[1];
+    return sz.w;
+  }
+  function bindSketchControls(welcome){
+    const s = state.sketchStudio;
+    const canvas = s.canvas;
+    const penBtn = welcome.querySelector('#toolPenBtn');
+    const eraserBtn = welcome.querySelector('#toolEraserBtn');
+    const undoBtn = welcome.querySelector('#undoBtn');
+    const redoBtn = welcome.querySelector('#redoBtn');
+    const clearBtn = welcome.querySelector('#clearBtn');
+    const setTool = (tool) => {
+      s.tool = tool;
+      penBtn.classList.toggle('primary', tool === 'pen');
+      eraserBtn.classList.toggle('primary', tool === 'eraser');
+    };
+    setTool('pen');
+    penBtn.addEventListener('click', () => setTool('pen'));
+    eraserBtn.addEventListener('click', () => setTool('eraser'));
+    undoBtn.addEventListener('click', () => undoSketch());
+    redoBtn.addEventListener('click', () => redoSketch());
+    clearBtn.addEventListener('click', () => {
+      s.paths = []; s.undone = []; drawSketch(); updateSketchSubmissionState();
+    });
+    welcome.querySelectorAll('.color-dot').forEach(btn => {
+      btn.addEventListener('click', () => {
+        s.color = btn.getAttribute('data-color'); s.tool = 'pen'; setTool('pen');
+        welcome.querySelectorAll('.color-dot').forEach(b => b.classList.toggle('sel', b === btn));
+      });
+    });
+    welcome.querySelectorAll('.size-chip').forEach(btn => {
+      btn.addEventListener('click', () => {
+        s.sizeKey = btn.getAttribute('data-size');
+        welcome.querySelectorAll('.size-chip').forEach(b => b.classList.toggle('sel', b === btn));
+      });
+    });
+    s.commitBtn.addEventListener('click', () => {
+      if (!s.dirty){ addGuide('先在画布上画一点内容再提交哦。'); return; }
+      submitSketchAsSource();
+    });
+    canvas.addEventListener('pointerdown', onSketchPointerDown);
+    canvas.addEventListener('pointermove', onSketchPointerMove);
+    canvas.addEventListener('pointerup', onSketchPointerEnd);
+    canvas.addEventListener('pointercancel', onSketchPointerEnd);
+    canvas.style.touchAction = 'none';
+  }
+  function undoSketch(){
+    const s = state.sketchStudio;
+    if (!s.paths.length) return;
+    s.undone.push(s.paths.pop());
+    drawSketch(); updateSketchSubmissionState();
+  }
+  function redoSketch(){
+    const s = state.sketchStudio;
+    if (!s.undone.length) return;
+    s.paths.push(s.undone.pop());
+    drawSketch(); updateSketchSubmissionState();
+  }
+  // 快捷键
+  document.addEventListener('keydown', (e) => {
+    const tag = (e.target && e.target.tagName) || '';
+    if (tag === 'TEXTAREA' || tag === 'INPUT') return;
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z'){ e.preventDefault(); undoSketch(); }
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.shiftKey && e.key === 'Z'))){ e.preventDefault(); redoSketch(); }
+  });
+
+  function refreshSketchCanvas(resetBase){
+    const s = state.sketchStudio;
+    if (!s.canvas) return;
+    const shell = s.canvas.parentElement;
+    shell.style.width = ''; shell.style.height = '';
+    let w = Math.max(1, shell.clientWidth);
+    let h = Math.max(1, shell.clientHeight);
+    if (resetBase || (!s.paths.length && !s.drawing)){ s.base = { w, h }; }
+    else {
+      const borderX = shell.offsetWidth - shell.clientWidth;
+      const borderY = shell.offsetHeight - shell.clientHeight;
+      const scale = Math.min(w / s.base.w, h / s.base.h);
+      w = Math.max(1, Math.round(s.base.w * scale));
+      h = Math.max(1, Math.round(s.base.h * scale));
+      shell.style.width = (w + borderX) + 'px';
+      shell.style.height = (h + borderY) + 'px';
+      shell.style.marginInline = 'auto';
+    }
+    const dpr = Math.max(window.devicePixelRatio || 1, 1);
+    s.dpr = dpr;
+    s.canvas.width = Math.max(1, Math.round(w * dpr));
+    s.canvas.height = Math.max(1, Math.round(h * dpr));
+    s.width = w; s.height = h;
+    s.canvas.style.width = w + 'px';
+    s.canvas.style.height = h + 'px';
+    s.ctx.setTransform(s.dpr, 0, 0, s.dpr, 0, 0);
+    s.ctx.lineCap = 'round'; s.ctx.lineJoin = 'round';
+    drawSketch();
+  }
+  function sketchPointFromEvent(evt){
+    const s = state.sketchStudio;
+    const rect = s.canvas.getBoundingClientRect();
+    const nx = (evt.clientX - rect.left) / rect.width;
+    const ny = (evt.clientY - rect.top) / rect.height;
+    return {
+      x: Math.min(1, Math.max(0, nx)),
+      y: Math.min(1, Math.max(0, ny)),
+      w: s.tool === 'eraser' ? 0.02 : currentStrokeW(),
+      erase: s.tool === 'eraser'
+    };
+  }
+  function drawSegment(sx, sy, tx, ty, width, erase, color){
+    const s = state.sketchStudio; const ctx = s.ctx;
+    ctx.save(); ctx.beginPath();
+    ctx.moveTo(sx * s.width, sy * s.height);
+    ctx.lineTo(tx * s.width, ty * s.height);
+    ctx.strokeStyle = erase ? '#fff' : (color || '#292C2C');
+    ctx.lineWidth = Math.max(1, width * s.width);
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.stroke(); ctx.restore();
+  }
+  function drawDot(point, width, erase, color){
+    const s = state.sketchStudio; const ctx = s.ctx;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(point.x * s.width, point.y * s.height, Math.max(.5, width * s.width / 2), 0, Math.PI * 2);
+    ctx.fillStyle = erase ? '#fff' : (color || '#292C2C');
+    ctx.fill(); ctx.restore();
+  }
+  function drawSketch(){
+    const s = state.sketchStudio; const ctx = s.ctx;
+    if (!ctx) return;
+    ctx.setTransform(s.dpr, 0, 0, s.dpr, 0, 0);
+    ctx.clearRect(0, 0, s.width, s.height);
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, s.width, s.height);
+    for (const stroke of s.paths){
+      if (stroke.points.length === 1){ drawDot(stroke.points[0], stroke.w, stroke.erase, stroke.color); continue; }
+      for (let i = 1; i < stroke.points.length; i++){
+        drawSegment(stroke.points[i-1].x, stroke.points[i-1].y, stroke.points[i].x, stroke.points[i].y, stroke.w, stroke.erase, stroke.color);
+      }
+    }
+  }
+  function onSketchPointerDown(e){
+    const s = state.sketchStudio;
+    if (s.drawing) return;
+    if (e.button !== undefined && e.button !== 0 && e.pointerType !== 'touch' && e.pointerType !== 'pen') return;
+    s.drawing = true; s.pointerId = e.pointerId;
+    const pt = sketchPointFromEvent(e);
+    pt.color = s.color;
+    s.currentStroke = [pt];
+    if (s.canvas.setPointerCapture) s.canvas.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  }
+  function onSketchPointerMove(e){
+    const s = state.sketchStudio;
+    if (!s.drawing || s.pointerId !== e.pointerId) return;
+    const p = sketchPointFromEvent(e); p.color = s.color;
+    const prev = s.currentStroke[s.currentStroke.length - 1];
+    if (!prev) return;
+    drawSegment(prev.x, prev.y, p.x, p.y, prev.w, prev.erase, prev.color);
+    s.currentStroke.push(p);
+    e.preventDefault();
+  }
+  function onSketchPointerEnd(e){
+    const s = state.sketchStudio;
+    if (!s.drawing || s.pointerId !== (e.pointerId ?? s.pointerId)) return;
+    if (s.currentStroke && s.currentStroke.length){
+      s.paths.push({ points: s.currentStroke, erase: s.currentStroke[0].erase, w: s.currentStroke[0].w, color: s.currentStroke[0].color });
+      s.undone = [];
+    }
+    s.currentStroke = null; s.drawing = false; s.pointerId = null;
+    if (s.canvas.releasePointerCapture && e.pointerId != null){ try { s.canvas.releasePointerCapture(e.pointerId); } catch (e) {} }
+    drawSketch(); updateSketchSubmissionState();
+  }
+  function hasSketchContent(){
+    const s = state.sketchStudio;
+    if (!s.ctx || !s.canvas || !s.canvas.width || !s.canvas.height) return false;
+    const pixels = s.ctx.getImageData(0, 0, s.canvas.width, s.canvas.height).data;
+    for (let i = 0; i < pixels.length; i += 4){
+      if (pixels[i] < 250 || pixels[i+1] < 250 || pixels[i+2] < 250) return true;
+    }
+    return false;
+  }
+  function updateSketchSubmissionState(){
+    const s = state.sketchStudio;
+    s.dirty = hasSketchContent();
+    if (s.commitBtn) s.commitBtn.disabled = !s.dirty;
+  }
+  function sketchToSourcePayload(){
+    const s = state.sketchStudio;
+    if (!s.canvas) return Promise.resolve(null);
+    return new Promise((resolve) => {
+      s.canvas.toBlob((blob) => {
+        if (!blob){ resolve(null); return; }
+        const fr = new FileReader();
+        fr.onload = () => resolve({ blob, dataUrl: String(fr.result || ''), name: 'sketch-' + Date.now() + '.png', bytes: blob.size || 0 });
+        fr.onerror = () => resolve(null);
+        fr.readAsDataURL(blob);
+      }, 'image/png');
+    });
+  }
+  async function submitSketchAsSource(){
+    const s = state.sketchStudio;
+    if (!s.dirty){ addGuide('空白草图不能提交哦。'); return; }
+    const payload = await sketchToSourcePayload();
+    if (!payload){ addGuide('草图导出失败，请重试。'); return; }
+    applySourcePayload(payload, { kind:'sketch', label:'手绘草图', name: payload.name });
+  }
+/* LINGTU_MARK_C */
+  /* ---------- 素材来源 ---------- */
+  const ALLOWED_SOURCE_TYPES = new Set(['image/png','image/jpeg','image/webp']);
+  const MAX_SOURCE_BYTES = 12 * 1024 * 1024;
+  function canReplaceCurrentSketch(){
+    if (!state.sketchStudio.dirty) return true;
+    return window.confirm('当前草图还没提交，继续会清空它。要继续吗？');
+  }
+  function clearDraftState(clearSource){
+    state.requestSeq += 1; state.sourceSeq += 1;
+    if (state.visionController) state.visionController.abort();
+    if (state.generateController) state.generateController.abort();
+    state.busyVision = false; state.busyGenerate = false;
+    if (clearSource){
+      state.sourceBlob = null; state.sourceDataUrl = ''; state.sourceName = ''; state.sourceKind = 'none';
+    }
+    state.draft = null; state.draftNode = null; state.intent = null; state.promptDraft = null;
+    state.stage = 'source';
+    $('#cancelBtn').style.display = 'none';
+  }
+  function applySourcePayload(payload, options){
+    if (!payload || !payload.blob) return;
+    const hit = findBanned(payload.name || '');
+    if (hit){ toast('⚠️ 内容包含不适宜词语，请修改'); return; }
+    clearDraftState();
+    state.sourceBlob = payload.blob;
+    state.sourceDataUrl = payload.dataUrl;
+    state.sourceName = payload.name || options.name || 'sketch.png';
+    state.sourceKind = options.kind || 'upload';
+    addUserImageBubble(state.sourceDataUrl, state.sourceName);
+    if (options.kind === 'sketch' || options.kind === 'upload'){
+      state.sketchStudio.paths = []; state.sketchStudio.undone = []; state.sketchStudio.dirty = false;
+      if (state.sketchStudio.canvas){ drawSketch(); updateSketchSubmissionState(); }
+    }
+    setStatus(options.status || '草图已收到');
+    if (state.visionConfig.key){ runVision(); }
+    else { state.stage = 'needs-recognition'; renderRecognitionRequired(); }
+  }
+  function fileToBlobSource(file){
+    return new Promise((resolve, reject) => {
+      if (!ALLOWED_SOURCE_TYPES.has(file.type)){ reject(new Error('请上传 PNG、JPEG 或 WebP 图片。')); return; }
+      if (file.size > MAX_SOURCE_BYTES){ reject(new Error('图片过大，请控制在 12MB 内。')); return; }
+      const version = state.sourceSeq;
+      const reader = new FileReader();
+      reader.onload = async () => {
+        if (version !== state.sourceSeq) return;
+        const dataUrl = String(reader.result || '');
+        try {
+          const arr = await file.arrayBuffer();
+          resolve({ dataUrl, blob: new Blob([arr], { type: file.type || 'image/png' }), name: file.name || 'sketch.png', bytes: arr });
+        } catch (e){ reject(e); }
+      };
+      reader.onerror = () => reject(reader.error || new Error('读取失败'));
+      reader.readAsDataURL(file);
+    });
+  }
+  async function onSourceUpload(file){
+    if (!canReplaceCurrentSketch()) return;
+    try {
+      const payload = await fileToBlobSource(file);
+      if (!payload) return;
+      applySourcePayload(payload, { kind:'upload', name: file.name, status:'草图已上传' });
+    } catch (e){ addGuide('读取文件失败：' + (e.message || '未知错误')); }
+  }
+
+  /* ---------- 网络：超时 / 降级链（保留原逻辑） ---------- */
+  function fetchTimeoutWithController(input, init, timeoutMs){
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs || 12000);
+    const outer = init && init.signal;
+    if (outer){
+      if (outer.aborted) controller.abort();
+      else outer.addEventListener('abort', () => controller.abort(), { once:true });
+    }
+    return fetch(input, Object.assign({}, init, { signal: controller.signal })).finally(() => clearTimeout(timer));
+  }
+  function modelList(cfg){
+    const list = String(cfg.model || '').split(',').map(m => m.trim()).filter(Boolean);
+    return list.length ? list : [String(cfg.model || '')];
+  }
+  async function postWithFallback(base, path, models, buildInit, timeoutMs, totalMs){
+    timeoutMs = timeoutMs || 240000; totalMs = totalMs || 480000;
+    let lastErr = null;
+    const deadline = Date.now() + totalMs;
+    for (const model of models){
+      const init = buildInit(model);
+      const outer = init && init.signal;
+      let attempt = 0;
+      const maxAttempts = 2;
+      while (attempt < maxAttempts && Date.now() < deadline){
+        const budget = Math.max(10000, Math.min(timeoutMs, deadline - Date.now()));
+        try {
+          const resp = await fetchTimeoutWithController(
+            String(base).replace(/\/+$/, '') + '/' + path,
+            Object.assign({}, init, { signal: outer }),
+            budget
+          );
+          if (resp.ok) return resp;
+          const t = await resp.text().catch(() => '');
+          lastErr = new Error(resp.status + ' ' + t.slice(0, 90));
+          lastErr.status = resp.status;
+          if (resp.status === 429 && attempt < maxAttempts - 1){ await sleep(3000 * (attempt + 1)); attempt++; continue; }
+          break;
+        } catch (e){
+          if (e.name === 'AbortError'){ if (outer && outer.aborted) throw e; lastErr = new Error('请求超时'); break; }
+          lastErr = e;
+          if (attempt < maxAttempts - 1){ await sleep(3000); attempt++; continue; }
+          break;
+        }
+      }
+    }
+    throw lastErr || new Error('请求失败');
+  }
+
+  /* ---------- 识图 runVision ---------- */
+  async function runVision(forced){
+    if (!state.sourceBlob || !state.sourceDataUrl) return;
+    if (!state.visionConfig.key){ setStatus('未配置 vision key'); return; }
+    if (state.busyVision){ setStatus('识别进行中，先别重复提交。'); return; }
+    const req = ++state.requestSeq;
+    const localSeq = state.sourceSeq;
+    state.busyVision = true;
+    state.stage = 'analyzing';
+    replaceCurrentCard();
+    state.draftNode = addMsg('assistant',
+      '<div style="width:90px;height:90px;margin:0 auto">' + mascot('think') + '</div>'
+      + '<div class="loading-card"><p>我正在认真看你的草图…</p><div class="progress-dots"><i></i><i></i><i></i></div></div>');
+    setStatus('正在识别草图…');
+    $('#cancelBtn').style.display = 'inline-block';
+    const visionController = new AbortController();
+    state.visionController = visionController;
+    try {
+      const corrections = (state.intent && state.intent.corrections) || [];
+      const promptAddition = corrections.length ? ('\n用户纠正：' + corrections.join('；')) : '';
+      const payload = {
+        messages: [
+          { role:'system', content:'你是善于从涂鸦联想完整画面、同时谨慎的草图理解助手。结合轮廓、动作和用户文字，发挥想象力推测用户想画的场景；推测不能当作事实，用户最新纠正优先于旧理解。只返回 JSON：observations（最多两条可见线条或形状）、tentative_intent（一句自然、简短的场景猜想，用"我猜你想画的是……"表达）、question（一个有用的确认问题，允许用户直接纠正）。不要只描述几何形状，也不要在这一步生成图片提示词、风格、比例或负面词。' },
+          { role:'user', content: [
+            { type:'text', text: '请先区分可见痕迹与想象推测，并向用户确认意图。' + promptAddition },
+            { type:'image_url', image_url: { url: state.sourceDataUrl } }
+          ]}
+        ],
+        max_tokens: 700
+      };
+      const resp = await postWithFallback(
+        state.visionConfig.base, 'chat/completions', modelList(state.visionConfig),
+        (model) => ({
+          method:'POST', signal: visionController.signal,
+          headers: { Authorization:'Bearer ' + state.visionConfig.key, 'Content-Type':'application/json' },
+          body: JSON.stringify(Object.assign({}, payload, { model }))
+        }),
+        60000, 150000
+      );
+      if (req !== state.requestSeq || localSeq !== state.sourceSeq) return;
+      if (!resp.ok) throw new Error('识别失败：' + resp.status);
+      const data = await resp.json();
+      if (req !== state.requestSeq || localSeq !== state.sourceSeq) return;
+      const content = (data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
+      let parsed = {};
+      try { parsed = typeof content === 'string' ? JSON.parse(content.replace(/^```(?:json)?|```$/g, '').trim()) : content; } catch { parsed = {}; }
+      if (typeof parsed.tentative_intent !== 'string' || !parsed.tentative_intent.trim()) throw new Error('模型没有返回有效的场景理解，请重试。');
+      state.intent = {
+        observations: Array.isArray(parsed.observations) ? parsed.observations.map(String).slice(0, 4) : [],
+        tentative: String(parsed.tentative_intent || '我看到了草图，但还不够确定它想表达的画面。'),
+        question: String(parsed.question || '这接近你想画的内容吗？'),
+        corrections
+      };
+      state.stage = 'intent';
+      renderIntent();
+      setStep(2);
+      setStatus('识别完成');
+    } catch (e){
+      if (req !== state.requestSeq || localSeq !== state.sourceSeq) return;
+      state.stage = 'needs-recognition';
+      renderRecognitionRequired(e.name === 'AbortError' ? '识别已取消，可以重新开始。' : e.message);
+      setStatus('草图已保留，可重新识别。', 'warn');
+    } finally {
+      if (req === state.requestSeq && localSeq === state.sourceSeq){
+        state.busyVision = false;
+        $('#cancelBtn').style.display = state.busyGenerate ? 'inline-block' : 'none';
+      }
+    }
+  }
+
+  /* ---------- 整理提示词 composePrompt（简化版：只推荐风格，不生成详细描述） ---------- */
+  function composePrompt(){
+    if (state.busyVision){ addGuide('识别未完成，请稍后。'); return; }
+    if (!state.intent || state.stage !== 'intent'){ addGuide('请先确认我对草图的理解。'); return; }
+    const req = ++state.requestSeq;
+    const localSeq = state.sourceSeq;
+    // 默认推荐写实照片风格（简笔草图 → 逼真真实图像）
+    const defaultStyle = '写实照片，逼真写实摄影，照片级真实感，自然光影，细节丰富，高清质感';
+    state.promptDraft = {
+      positive: '',
+      negative: '',
+      style: defaultStyle,
+      ratio: '16:9',
+      notes: []
+    };
+    state.stage = 'prompt';
+    renderPromptReview();
+    setStep(3);
+    setStatus('选个喜欢的风格，就可以生成啦。');
+  }
+/* LINGTU_MARK_D */
+  /* ---------- 卡片渲染 ---------- */
+  function replaceCurrentCard(){ if (state.draftNode) state.draftNode.remove(); }
+
+  function renderIntent(){
+    if (!state.intent) return;
+    replaceCurrentCard();
+    const intent = state.intent;
+    const observation = (intent.observations || []).join('；');
+    const html =
+      '<div class="inline-badge">等你确认</div>'
+      + '<div style="width:70px;height:70px;margin:2px auto 4px">' + mascot('think') + '</div>'
+      + '<div class="meta">我先这样理解</div>'
+      + (observation ? '<p class="tiny">我从草图里看到：' + p(observation) + '</p>' : '')
+      + '<h4>' + p(intent.tentative || '我还没能确定这张草图想表达什么。') + '</h4>'
+      + '<p>' + p(intent.question || '这接近你的想法吗？') + '</p>'
+      + '<div class="actions end">'
+      +   '<button class="btn" id="intentCorrect">我想改一改</button>'
+      +   '<button class="btn primary" id="intentConfirm">对，就是这个 ✨</button>'
+      + '</div>';
+    const box = addMsg('assistant', html);
+    state.draftNode = box;
+    box.querySelector('#intentCorrect').addEventListener('click', () => {
+      $('#composerInput').focus();
+      setStatus('告诉我哪里不对，我会结合原草图重新理解。');
+    });
+    box.querySelector('#intentConfirm').addEventListener('click', composePrompt);
+  }
+
+  function renderPromptReview(){
+    if (!state.promptDraft) return;
+    replaceCurrentCard();
+    const d = state.promptDraft;
+    const ratioOptions = RATIO.map(i => '<option value="' + i.v + '"' + (i.v === d.ratio ? ' selected' : '') + '>' + i.label + '</option>').join('');
+    const chips = STYLE_CHIPS.map(c => {
+      const locked = c.pro && !gam.member;
+      return '<button class="chip' + (d.style && d.style.indexOf(c.name) !== -1 ? ' sel' : '') + '" data-style="' + c.v + '" data-pro="' + (c.pro ? '1' : '') + '">'
+        + c.name + (locked ? ' <span class="lock">🔒</span>' : '') + '</button>';
+    }).join('');
+    const nOptions = [1, 2, 4].map(n => {
+      const locked = n > 1 && !gam.member;
+      return '<button class="seg-n" data-n="' + n + '"' + (state.genCount === n ? ' data-sel="1"' : '') + '>'
+        + n + '张' + (locked ? ' <span class="lock">🔒</span>' : '') + '</button>';
+    }).join('');
+    const html =
+      '<div class="inline-badge">选个风格</div>'
+      + '<div style="width:64px;height:64px;margin:0 auto 4px">' + mascot('happy') + '</div>'
+      + '<div class="meta">原画会直接传给生图模型，你只要选个喜欢的风格就行</div>'
+      + '<label class="field">风格描述（可修改）</label><input class="field" id="styleInput" type="text" value="' + p(d.style) + '" />'
+      + '<div class="chips" id="styleChips">' + chips + '</div>'
+      + '<div class="row-inline" style="margin-top:10px;gap:14px">'
+      +   '<div><label class="field">比例</label><select class="field" id="ratioInput" style="width:auto">' + ratioOptions + '</select></div>'
+      +   '<div><label class="field">生成数量</label><div class="seg" id="nSeg">' + nOptions + '</div></div>'
+      + '</div>'
+      + '<p class="tiny">点上面的风格标签一键填入；也可以在输入框里自己写风格。</p>'
+      + '<div class="actions end">'
+      +   '<button class="btn" id="backIntent">← 返回改想法</button>'
+      +   '<button class="btn primary" id="confirmPrompt">确认并生成</button>'
+      + '</div>';
+    const box = addMsg('assistant', html);
+    state.draftNode = box;
+    const styleEl = box.querySelector('#styleInput');
+    const ratioEl = box.querySelector('#ratioInput');
+    styleEl.addEventListener('input', e => { d.style = e.target.value; });
+    ratioEl.addEventListener('change', e => { d.ratio = e.target.value; });
+    box.querySelectorAll('#styleChips .chip').forEach(ch => {
+      ch.addEventListener('click', () => {
+        if (ch.getAttribute('data-pro') === '1' && !gam.member){ openUpgrade('这个高级风格是 PRO 专属哦'); return; }
+        styleEl.value = ch.getAttribute('data-style');
+        d.style = ch.getAttribute('data-style');
+        box.querySelectorAll('#styleChips .chip').forEach(x => x.classList.toggle('sel', x === ch));
+      });
+    });
+    box.querySelectorAll('#nSeg .seg-n').forEach(b => {
+      b.addEventListener('click', () => {
+        const n = parseInt(b.getAttribute('data-n'), 10);
+        if (n > 1 && !gam.member){ openUpgrade('一次生成多张是 PRO 专属功能'); return; }
+        state.genCount = n;
+        box.querySelectorAll('#nSeg .seg-n').forEach(x => x.removeAttribute('data-sel'));
+        b.setAttribute('data-sel', '1');
+      });
+    });
+    box.querySelector('#backIntent').addEventListener('click', () => {
+      state.stage = 'intent';
+      renderIntent();
+      setStep(2);
+    });
+    box.querySelector('#confirmPrompt').addEventListener('click', confirmGenerate);
+  }
+
+  function renderRecognitionRequired(failureMessage){
+    replaceCurrentCard();
+    const canRetry = !!state.visionConfig.key;
+    const title = failureMessage ? '这次没能完成识图，草图和你的想法都保留着。' : '还差一步：连接识图模型';
+    const detail = failureMessage || '在右上角设置里填入 vision key，我就能先看懂你画的是什么。';
+    const html =
+      '<div style="width:80px;height:80px;margin:0 auto">' + mascot('think') + '</div>'
+      + '<div class="meta">草图已收到</div><h4>' + p(title) + '</h4><p class="tiny">' + p(detail) + '</p>'
+      + '<div class="actions end"><button class="btn primary" id="openRecognitionSettings">' + (canRetry ? '重新识别' : '去设置') + '</button></div>';
+    const box = addMsg('assistant', html);
+    state.draftNode = box;
+    box.querySelector('#openRecognitionSettings').addEventListener('click', () => {
+      if (canRetry) runVision(true); else $('#settingsBtn').click();
+    });
+  }
+
+  function getDraftPrompt(){
+    const d = state.promptDraft;
+    // 简笔草图 → 逼真写实图像，只传风格等少量提示词
+    return '将这幅简笔草图转化为逼真的写实图像，保持原图构图和主体：' + (d.style || '逼真写实摄影，照片级真实感');
+  }
+
+  /* ---------- 生图等待体验（分阶段进度+吉祥物互动+趣味文案） ---------- */
+  const genLoading = {
+    timer:null, tipTimer:null, tipIdx:0,
+    stages:[
+      { t:0,  pct:10, text:'灵灵正在理解你的想法…', mood:'think' },
+      { t:9,  pct:28, text:'正在打草稿，勾勒轮廓…', mood:'think' },
+      { t:22, pct:50, text:'正在上色，调配好看的颜色…', mood:'happy' },
+      { t:40, pct:70, text:'正在加细节，让画面更生动…', mood:'think' },
+      { t:58, pct:87, text:'快完成了，正在做最后的润色…', mood:'celebrate' }
+    ],
+    tips:['每一幅画都是独一无二的哦','灵灵画画的时候喜欢哼歌','好画值得耐心等待','颜色混合会产生神奇的新颜色','灵灵的画笔有魔法','你今天想画什么呢'],
+    start(){
+      this.stop(); this.tipIdx = 0;
+      const t0 = Date.now();
+      const update = () => {
+        const el = (Date.now() - t0) / 1000;
+        let st = this.stages[this.stages.length-1];
+        for(let i=0;i<this.stages.length;i++){ if(el >= this.stages[i].t) st = this.stages[i]; }
+        let pct = st.pct;
+        const idx = this.stages.indexOf(st);
+        if(idx < this.stages.length-1){
+          const nx = this.stages[idx+1], span = nx.t - st.t;
+          if(span > 0){ const l = Math.min(1,(el-st.t)/span); pct = st.pct + (nx.pct-st.pct)*l; }
+        }
+        const mm = document.getElementById('genMascot'), ss = document.getElementById('genStage'), bb = document.getElementById('genProgressBar');
+        if(mm) mm.innerHTML = mascot(st.mood);
+        if(ss) ss.textContent = st.text;
+        if(bb) bb.style.width = pct + '%';
+      };
+      update();
+      this.timer = setInterval(update, 1500);
+      const tipEl = document.getElementById('genTip');
+      if(tipEl) tipEl.textContent = this.tips[0];
+      this.tipTimer = setInterval(() => {
+        this.tipIdx = (this.tipIdx+1) % this.tips.length;
+        const el = document.getElementById('genTip');
+        if(el){ el.style.opacity='0'; setTimeout(()=>{ el.textContent=this.tips[this.tipIdx]; el.style.opacity='.75'; },300); }
+      }, 7000);
+    },
+    finish(){ const b = document.getElementById('genProgressBar'); if(b) b.style.width='100%'; this.stop(); },
+    stop(){ if(this.timer){ clearInterval(this.timer); this.timer=null; } if(this.tipTimer){ clearInterval(this.tipTimer); this.tipTimer=null; } }
+  };
+
+  /* ---------- 生成 ---------- */
+  function confirmGenerate(){
+    if (state.busyVision || state.busyGenerate){ setStatus('正在整理内容，请等完成后再确认。'); return; }
+    if (state.stage !== 'prompt' || !state.promptDraft || !state.promptDraft.positive || !state.promptDraft.positive.trim()){
+      addGuide('请先确认可编辑的画面描述。'); return;
+    }
+    // 内容过滤：画面描述 + 风格 + 负面词
+    const hit = findBanned(state.promptDraft.positive + ' ' + state.promptDraft.style + ' ' + state.promptDraft.negative);
+    if (hit){ toast('⚠️ 内容包含不适宜词语，请修改后再生成'); return; }
+    if (!state.imageConfig.key){ addGuide('还没有连接生图模型，请先在设置里填写 image key。'); return; }
+    if (!consumePointsIfAllowed()) return;
+    runGenerate();
+  }
+
+  async function runGenerate(){
+    if (!state.sourceBlob || !state.promptDraft || state.stage !== 'prompt') return;
+    if (state.busyGenerate){ setStatus('生成中，避免重复提交。'); return; }
+    const req = ++state.requestSeq;
+    const localSeq = state.sourceSeq;
+    state.busyGenerate = true;
+    state.stage = 'generating';
+    setStep(4);
+    $('#cancelBtn').style.display = 'inline-block';
+    state.generateController = new AbortController();
+    const ratio = RATIO.find(r => r.v === state.promptDraft.ratio) || RATIO[0];
+    const n = state.genCount || 1;
+    replaceCurrentCard();
+    state.draftNode = addMsg('assistant',
+      '<div class="gen-loading">'
+      + '<div class="gen-mascot" id="genMascot">' + mascot('think') + '</div>'
+      + '<div class="gen-stage" id="genStage">灵灵正在理解你的想法…</div>'
+      + '<div class="gen-progress-wrap"><div class="gen-progress-bar" id="genProgressBar"></div></div>'
+      + '<div class="gen-tip" id="genTip">每一幅画都是独一无二的哦</div>'
+      + '</div>');
+    genLoading.start();
+    try {
+      const resp = await postWithFallback(
+        state.imageConfig.base, 'images/edits', modelList(state.imageConfig),
+        (model) => {
+          const fd = new FormData();
+          fd.append('model', model);
+          fd.append('image', state.sourceBlob, state.sourceName || 'source.png');
+          fd.append('prompt', getDraftPrompt());
+          fd.append('negative_prompt', '简笔画,线稿,素描,卡通,插画,手绘,涂鸦,低质量,模糊');
+          fd.append('n', String(n));
+          fd.append('size', ratio.size);
+          return {
+            method:'POST',
+            headers: { Authorization:'Bearer ' + state.imageConfig.key },
+            body: fd,
+            signal: state.generateController.signal
+          };
+        },
+        240000
+      );
+      if (req !== state.requestSeq || localSeq !== state.sourceSeq) return;
+      const data = await resp.json();
+      if (req !== state.requestSeq || localSeq !== state.sourceSeq) return;
+      const items = (data && Array.isArray(data.data)) ? data.data : [];
+      const urls = items.map(item => (typeof item && item.b64_json === 'string' && item.b64_json)
+        ? ('data:image/png;base64,' + item.b64_json)
+        : (item && item.url)).filter(Boolean);
+      if (!urls.length) throw new Error('无返回图片');
+      genLoading.finish();
+      replaceCurrentCard();
+      state.draftNode = null;
+      state.lastResultUrls = urls;
+      state.stage = 'result';
+      // 打点
+      afterGenerated({ style: state.promptDraft.style });
+      if (!isDailyDone()){ markDailyDone(); unlockAch('daily'); }
+      addResultBox(urls);
+      setStatus('生成完成');
+    } catch (e){
+      if (req !== state.requestSeq || localSeq !== state.sourceSeq) return;
+      state.stage = 'prompt';
+      addGuide('生成失败：' + (e.name === 'AbortError' ? '已取消' : e.message));
+      renderPromptReview();
+      setStep(3);
+    } finally {
+      genLoading.stop();
+      if (req === state.requestSeq && localSeq === state.sourceSeq){
+        state.busyGenerate = false;
+        $('#cancelBtn').style.display = state.busyVision ? 'inline-block' : 'none';
+      }
+    }
+  }
+/* LINGTU_MARK_E */
+  /* ---------- 文字改稿 revisePrompt / appendTextRevision / onSend ---------- */
+  function appendTextRevision(text){
+    if (!text) return;
+    const hit = findBanned(text);
+    if (hit){ toast('⚠️ 内容包含不适宜词语，请换个说法'); return; }
+    if (state.stage === 'intent' && state.intent){
+      state.intent.corrections = (state.intent.corrections || []).concat([text]);
+      addGuide('我会带着这条补充重新理解原草图。');
+      runVision(true);
+    } else if (state.stage === 'prompt' && state.promptDraft){
+      revisePrompt(text);
+    } else if (state.stage === 'needs-recognition'){
+      state.intent = state.intent || { observations:[], tentative:'', question:'', corrections:[] };
+      state.intent.corrections = (state.intent.corrections || []).concat([text]);
+      addGuide('先连接识图模型；连接后会把这句补充和原草图一起理解。');
+    } else {
+      addGuide('请先画一笔或上传照片，再告诉我你的想法。');
+    }
+  }
+  /* ---------- 文字改稿 revisePrompt（简化版：直接更新风格，不调用API） ---------- */
+  function revisePrompt(text){
+    if (!state.promptDraft) return;
+    const d = state.promptDraft;
+    const hit = findBanned(text);
+    if (hit){ toast('⚠️ 内容包含不适宜词语，请换个说法'); return; }
+    // 如果用户说"改成X"/"换成X"/"用X"，就替换风格；否则追加到风格后面
+    const m = text.match(/(?:改成|换成|换|要|用|希望|想要)\s*(.+)/);
+    if (m && m[1]) {
+      d.style = m[1].trim();
+    } else {
+      d.style = (d.style || '') + '，' + text;
+    }
+    renderPromptReview();
+    addGuide('风格已更新：' + d.style);
+    setStatus('风格已更新，确认后即可生成。');
+  }
+  function onSend(){
+    const text = $('#composerInput').value.trim();
+    if (!text) return;
+    if (state.sourceKind === 'none' || (state.sketchStudio.canvas && state.sketchStudio.canvas.isConnected && state.sketchStudio.dirty)){
+      if (state.sketchStudio.dirty) setStatus('请先点"用这张草图"提交当前草图；你的文字已保留。');
+      else setStatus('请先画一笔或上传照片，再发送想法；文字已保留。');
+      return;
+    }
+    addMsg('user', '<p>' + p(text) + '</p>');
+    $('#composerInput').value = '';
+    appendTextRevision(text);
+  }
+
+  /* ---------- Lightbox ---------- */
+  function openLightbox(url){
+    $('#lbImg').src = url;
+    $('#lightbox').classList.add('show');
+  }
+  function closeLightbox(){ $('#lightbox').classList.remove('show'); }
+  $('#lbClose').addEventListener('click', closeLightbox);
+  $('#lightbox').addEventListener('click', (e) => { if (e.target.id === 'lightbox') closeLightbox(); });
+
+  /* ---------- 图片压缩存画廊（JPEG q0.6，<200KB） ---------- */
+  function compressForGallery(url){
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const maxW = 720;
+        const scale = Math.min(1, maxW / img.width);
+        const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
+        const cv = document.createElement('canvas');
+        cv.width = w; cv.height = h;
+        cv.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(cv.toDataURL('image/jpeg', 0.6));
+      };
+      img.onerror = () => resolve(null);
+      img.src = url;
+    });
+  }
+  async function saveToGallery(url){
+    const dataUrl = await compressForGallery(url);
+    if (!dataUrl){ toast('保存失败'); return; }
+    const list = gam.gallery;
+    list.unshift({ dataUrl: dataUrl, ts: Date.now(), style: (state.promptDraft && state.promptDraft.style) || '' });
+    gam.gallery = list;
+    if (gam.gallery.length >= 10) unlockAch('gallery10');
+    toast('🖼️ 已保存到画廊');
+  }
+
+  /* ---------- 分享 ---------- */
+  function downloadUrl(url, name){
+    const a = document.createElement('a');
+    a.href = url; a.download = name || ('lingtu-' + Date.now() + '.png');
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+  async function shareImage(url){
+    unlockAch('share');
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      if (navigator.canShare && navigator.share && navigator.canShare({ files: [new File([blob], 'lingtu.png', { type: blob.type })] })){
+        await navigator.share({ files: [new File([blob], 'lingtu.png', { type: blob.type })] });
+        return;
+      }
+    } catch (e) {}
+    // 降级：带水印分享图
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const cv = document.createElement('canvas');
+      cv.width = img.width; cv.height = img.height;
+      const ctx = cv.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      ctx.font = '24px sans-serif';
+      ctx.fillStyle = 'rgba(255,255,255,.85)';
+      ctx.fillText('来自 灵图·手绘成真', 16, cv.height - 20);
+      const shareUrl = cv.toDataURL('image/png');
+      try {
+        if (navigator.clipboard && window.ClipboardItem){
+          navigator.clipboard.write([new ClipboardItem({ 'image/png': fetch(shareUrl) })]).then(
+            () => toast('图片已复制到剪贴板 📋'),
+            () => downloadUrl(shareUrl, 'lingtu-share.png')
+          );
+          return;
+        }
+      } catch (e) {}
+      downloadUrl(shareUrl, 'lingtu-share.png');
+      toast('已下载分享图');
+    };
+    img.onerror = () => downloadUrl(url, 'lingtu.png');
+    img.src = url;
+  }
+
+  /* ---------- 结果卡片 ---------- */
+  function addResultBox(urls){
+    urls = urls || [];
+    if (!urls.length){ addGuide('暂时无法读取这张成品，请重试。'); return; }
+    const imgs = urls.map(u => '<img class="result-preview" src="' + p(u) + '" alt="生成结果" data-full="' + p(u) + '"/>').join('');
+    const hideShare = gam.parentMode;
+    const html =
+      '<div style="width:86px;height:86px;margin:0 auto">' + mascot('celebrate') + '</div>'
+      + '<h4>画好啦，开心！</h4><p>看看是不是你想象的样子～</p>'
+      + '<div class="result-grid">' + imgs + '</div>'
+      + '<div class="result-toolbar">'
+      +   '<button class="btn small" data-act="redo">🔁 再来一张</button>'
+      +   '<button class="btn small" data-act="restyle">🎨 换个风格</button>'
+      +   '<button class="btn small" data-act="gallery">💾 存到画廊</button>'
+      +   (hideShare ? '' : '<button class="btn small" data-act="share">📤 分享</button>')
+      +   '<button class="btn small" data-act="hd" disabled title="高清处理尚未接通">高清未接通</button>'
+      +   '<button class="btn small" data-act="report" disabled title="请联系你配置的模型服务商">举报未接通</button>'
+      +   '<button class="btn small" data-act="download">⬇️ 下载</button>'
+      + '</div>';
+    const box = addMsg('assistant', html);
+    confetti();
+    // lightbox
+    box.querySelectorAll('.result-preview').forEach(img => {
+      img.addEventListener('click', () => openLightbox(img.getAttribute('data-full')));
+    });
+    const act = (name, fn) => {
+      const b = box.querySelector('[data-act="' + name + '"]');
+      if (b) b.addEventListener('click', fn);
+    };
+    act('download', () => downloadUrl(urls[0]));
+    act('gallery', () => saveToGallery(urls[0]));
+    act('share', () => shareImage(urls[0]));
+    act('redo', () => { unlockAch('redo'); if (!consumePointsIfAllowed()) return; runGenerate(); });
+    act('restyle', () => { state.stage = 'prompt'; renderPromptReview(); setStep(3); });
+    act('hd', () => toast('高清处理尚未接通。'));
+    act('report', () => toast('举报服务尚未接通，请联系你配置的模型服务商。'));
+  }
+
+  /* ---------- 举报 ---------- */
+  let reportReason = '';
+  function openReport(onDone){
+    reportReason = '';
+    $('#reportReasons').forEach ? null : null;
+    $$('#reportReasons .chip').forEach(c => c.classList.remove('sel'));
+    $('#reportPanel').classList.add('show');
+    $('#reportReasons').onclick = (e) => {
+      const chip = e.target.closest('.chip');
+      if (!chip) return;
+      reportReason = chip.getAttribute('data-r');
+      $$('#reportReasons .chip').forEach(x => x.classList.toggle('sel', x === chip));
+    };
+    const send = () => {
+      if (!reportReason){ toast('请选择一个原因'); return; }
+      $('#reportPanel').classList.remove('show');
+      onDone && onDone();
+    };
+    $('#reportSend').onclick = send;
+    $('#reportCancel').onclick = () => $('#reportPanel').classList.remove('show');
+  }
+/* LINGTU_MARK_F */
+  /* ---------- 公开体验版说明 ---------- */
+  function openUpgrade(){ $('#upgradePanel').classList.add('show'); }
+  $('#upgradeClose').addEventListener('click', () => $('#upgradePanel').classList.remove('show'));
+  $('#pointsPill').addEventListener('click', () => openUpgrade());
+  $('#streakPill').addEventListener('click', () => toast('🔥 已连续创作 ' + gam.streak + ' 天，继续保持！'));
+
+  /* ---------- 家长 PIN ---------- */
+  function askPin(onOk){
+    $('#pinPanel').classList.add('show');
+    $('#pinEntry').value = '';
+    $('#pinMsg').textContent = '';
+    $('#pinOk').onclick = () => {
+      if ($('#pinEntry').value === gam.pin){
+        $('#pinPanel').classList.remove('show');
+        onOk && onOk();
+      } else {
+        $('#pinMsg').textContent = '密码不对，请重试';
+      }
+    };
+    $('#pinCancel').onclick = () => $('#pinPanel').classList.remove('show');
+  }
+
+  /* ---------- 成就面板 ---------- */
+  function openAchievements(){
+    const un = gam.unlockedAchs;
+    $('#achGrid').innerHTML = ACHIEVEMENTS.map(a =>
+      '<div class="ach' + (un.indexOf(a.id) !== -1 ? ' unlocked' : '') + '">'
+      + '<div class="ico">' + (un.indexOf(a.id) !== -1 ? a.ico : '🔒') + '</div>'
+      + '<div class="an">' + a.name + '</div><div class="ad">' + a.desc + '</div></div>'
+    ).join('');
+    store.set('freshAch', false);
+    refreshHUD();
+    $('#achPanel').classList.add('show');
+  }
+  $('#achBtn').addEventListener('click', openAchievements);
+  $('#achClose').addEventListener('click', () => $('#achPanel').classList.remove('show'));
+
+  /* ---------- 画廊 ---------- */
+  function openGallery(){
+    const list = gam.gallery;
+    if (!list.length){
+      $('#galGrid').innerHTML = '<p class="tiny" style="grid-column:1/-1">还没有作品，去生成第一张画吧～</p>';
+    } else {
+      $('#galGrid').innerHTML = list.map((it, i) =>
+        '<div class="gal-item"><img src="' + it.dataUrl + '" alt="作品" data-idx="' + i + '"/>'
+        + '<button class="gal-del" data-del="' + i + '">×</button></div>'
+      ).join('');
+      $('#galGrid').querySelectorAll('img').forEach(img => {
+        img.addEventListener('click', () => openLightbox(img.src));
+      });
+      $('#galGrid').querySelectorAll('[data-del]').forEach(b => {
+        b.addEventListener('click', () => {
+          const arr = gam.gallery;
+          arr.splice(parseInt(b.getAttribute('data-del'), 10), 1);
+          gam.gallery = arr;
+          openGallery();
+        });
+      });
+    }
+    $('#galPanel').classList.add('show');
+  }
+  $('#galleryBtn').addEventListener('click', openGallery);
+  $('#galClose').addEventListener('click', () => $('#galPanel').classList.remove('show'));
+
+  /* ---------- 语音输入（Web Speech API，不支持则隐藏） ---------- */
+  function initVoice(){
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR){ $('#micBtn').classList.add('hidden'); return; }
+    const rec = new SR();
+    rec.lang = 'zh-CN'; rec.interimResults = false;
+    let listening = false;
+    $('#micBtn').addEventListener('click', () => {
+      if (listening){ rec.stop(); return; }
+      try { rec.start(); listening = true; $('#micBtn').classList.add('rec'); }
+      catch (e){ toast('语音启动失败'); }
+    });
+    rec.onresult = (e) => {
+      const text = e.results[0][0].transcript;
+      $('#composerInput').value = ($('#composerInput').value ? $('#composerInput').value + '，' : '') + text;
+      $('#composerInput').focus();
+    };
+    rec.onend = () => { listening = false; $('#micBtn').classList.remove('rec'); };
+    rec.onerror = () => { listening = false; $('#micBtn').classList.remove('rec'); toast('语音识别失败'); };
+  }
+
+  /* ---------- 设置面板（密钥仅内存） ---------- */
+  function closeSettings(){ $('#settingsPanel').classList.remove('show'); }
+  function setupSettingPanel(){
+    $('#visionBase').value = state.visionConfig.base;
+    $('#visionModel').value = state.visionConfig.model;
+    $('#imageBase').value = state.imageConfig.base;
+    $('#imageModel').value = state.imageConfig.model;
+    $('#parentToggle').checked = gam.parentMode;
+    $('#pinInput').value = '';
+    $('#settingsBtn').addEventListener('click', () => {
+      $('#settingsMsg').textContent = '密钥只保存在本次会话内存中，关闭页面即清空。';
+      $('#settingsPanel').classList.add('show');
+    });
+    $('#settingsClose').addEventListener('click', closeSettings);
+    $('#settingsClear').addEventListener('click', () => {
+      state.visionConfig.key = ''; state.imageConfig.key = '';
+      $('#visionKey').value = ''; $('#imageKey').value = '';
+      $('#settingsMsg').textContent = 'Keys 已清空（内存）';
+      setStatus('Keys 已清空');
+    });
+    $('#parentToggle').addEventListener('change', (e) => {
+      const on = e.target.checked;
+      const apply = () => { gam.parentMode = on; refreshHUD(); toast(on ? '👪 家长监护模式已开启' : '家长模式已关闭'); };
+      if (on){ askPin(apply); } else { gam.parentMode = false; refreshHUD(); }
+    });
+    $('#pinInput').addEventListener('change', (e) => {
+      const v = e.target.value.trim();
+      if (v){ store.set('pin', v); toast('家长密码已更新'); e.target.value = ''; }
+    });
+    $('#settingsSave').addEventListener('click', () => {
+      state.visionConfig.base = $('#visionBase').value.trim() || 'https://ai.cangyuansuanli.cn/v1';
+      state.imageConfig.base = $('#imageBase').value.trim() || 'https://ai.cangyuansuanli.cn/v1';
+      state.visionConfig.model = $('#visionModel').value.trim() || 'gpt-5.6-terra,gpt-5.6-sol,gpt-5.5';
+      state.imageConfig.model = $('#imageModel').value.trim() || 'gpt-image-2.5,nano-banana2-1k,nano-banana-pro-1k,gpt-image-2';
+      if ($('#visionKey').value.trim()) state.visionConfig.key = $('#visionKey').value.trim();
+      if ($('#imageKey').value.trim()) state.imageConfig.key = $('#imageKey').value.trim();
+      $('#visionKey').value = ''; $('#imageKey').value = '';
+      if (state.sourceBlob && state.stage === 'needs-recognition' && state.visionConfig.key) runVision();
+      $('#settingsMsg').textContent = '已更新（仅本次会话内存）';
+      setStatus('设置已保存');
+      setTimeout(closeSettings, 400);
+    });
+  }
+
+  /* ---------- 全局事件绑定 ---------- */
+  function bind(){
+    $('#uploadInput').addEventListener('change', async (e) => {
+      const f = e.target.files && e.target.files[0]; e.target.value = '';
+      if (f) await onSourceUpload(f);
+    });
+    $('#cameraInput').addEventListener('change', async (e) => {
+      const f = e.target.files && e.target.files[0]; e.target.value = '';
+      if (f) await onSourceUpload(f);
+    });
+    $('#quickUploadBtn').addEventListener('click', () => { if (canReplaceCurrentSketch()) $('#uploadInput').click(); });
+    $('#quickCameraBtn').addEventListener('click', () => { if (canReplaceCurrentSketch()) $('#cameraInput').click(); });
+    $('#quickSketchBtn').addEventListener('click', () => { if (canReplaceCurrentSketch()) renderWelcomeStudio(true); });
+
+    $('#sendBtn').addEventListener('click', onSend);
+    $('#composerInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); onSend(); }
+    });
+    $('#newChat').addEventListener('click', () => {
+      clearDraftState(true);
+      $('#composerInput').value = '';
+      addWelcome();
+    });
+    $('#cancelBtn').addEventListener('click', () => {
+      if (state.visionController) state.visionController.abort();
+      if (state.generateController) state.generateController.abort();
+      setStatus('已取消进行中任务。');
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape'){
+        ['#settingsPanel','#upgradePanel','#achPanel','#galPanel','#reportPanel','#pinPanel'].forEach(s => {
+          const el = $(s); if (el) el.classList.remove('show');
+        });
+        closeLightbox();
+      }
+    });
+    setupSettingPanel();
+    initVoice();
+  }
+
+  /* ---------- 图标初始化 ---------- */
+  function initIcons(){
+    $('#brandMark').innerHTML = brandLogo(38);
+    $('#streakIcon').innerHTML = icon('flame', 15);
+    $('#pointsIcon').innerHTML = icon('sparkles', 15);
+    $('#themeBtn').innerHTML = icon('palette', 20);
+    $('#achBtn').innerHTML = icon('award', 20) + '<span class="dot hidden" id="achDot"></span>';
+    $('#galleryBtn').innerHTML = icon('image', 20);
+    $('#newChat').innerHTML = icon('wand', 20);
+    $('#settingsBtn').innerHTML = icon('settings', 20);
+    $('#quickUploadBtn').innerHTML = icon('upload', 20);
+    $('#quickCameraBtn').innerHTML = icon('camera', 20);
+    $('#quickSketchBtn').innerHTML = icon('pencil', 20);
+  }
+
+  /* ---------- 启动 ---------- */
+  function bootstrap(){
+    if (location.protocol === 'file:'){
+      const warn = document.createElement('div');
+      warn.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#fff3cd;color:#856404;padding:10px 16px;font-size:13px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.12);line-height:1.5';
+      warn.innerHTML = '⚠️ 检测到直接双击打开文件。Chrome 对 file:// 页面的图片上传和 AI 请求有限制，可能导致识图一直转圈。<br>建议双击同目录下的 <b>启动.command</b>，或终端执行 <code>python3 -m http.server 8765</code> 后打开 <code>http://localhost:8765</code>。';
+      document.body.appendChild(warn);
+    }
+    initIcons();
+    initTheme();
+    refreshHUD();
+    bind();
+    addWelcome();
+    initOnboarding();
+  }
+  bootstrap();
+/* LINGTU_END */
+})();
+</script>
+</body>
+</html>
