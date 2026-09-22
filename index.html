@@ -853,12 +853,24 @@ select.field{height:42px}
     if (!response.ok) throw new Error(data.detail || '绘画服务暂时不可用，请稍后重试。');
     if (path !== 'images/edits') return new Response(JSON.stringify(data), {headers:{'Content-Type':'application/json'}});
     const deadline = Date.now() + 360000;
+    let pollBase = base;
+    const recoverResultConnection = async () => {
+      // A tunnel can rotate while the same backend job is still running.
+      // Keep its owner token and job ID; never submit another image request.
+      await loadPublicApiConfig();
+      if (PUBLIC_API_BASE) pollBase = PUBLIC_API_BASE;
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    };
     while (Date.now() < deadline){
       if (init.signal && init.signal.aborted) throw new DOMException('已取消', 'AbortError');
       let poll;
-      try { poll = await fetchTimeoutWithController(base + '/api/jobs/' + encodeURIComponent(data.job_id), {headers:{Authorization:'Bearer '+token},signal:init.signal}, 20000); }
-      catch(e){ if (userCancelled(e, init.signal)) throw e; if (e && e.name === 'AbortError') throw new Error('读取创作结果超时，请稍后重试。草图仍然保留。'); throw new Error('读取创作结果失败，请稍后重试。草图仍然保留。'); }
-      const job = await poll.json();
+      try { poll = await fetchTimeoutWithController(pollBase + '/api/jobs/' + encodeURIComponent(data.job_id), {headers:{Authorization:'Bearer '+token},signal:init.signal}, 20000); }
+      catch(e){ if (userCancelled(e, init.signal)) throw e; await recoverResultConnection(); continue; }
+      if ([408,429,500,502,503,504,520,521,522,523,524,525,526,530].includes(poll.status)){
+        await recoverResultConnection();
+        continue;
+      }
+      const job = await poll.json().catch(() => ({}));
       if (!poll.ok) throw new Error(job.detail || '读取创作结果失败，请稍后重试。');
       if (job.status === 'done') return new Response(JSON.stringify(job.result), {headers:{'Content-Type':'application/json'}});
       if (job.status === 'failed') throw new Error(job.error || '模型暂时没有完成，请重试。');
@@ -1449,6 +1461,7 @@ select.field{height:42px}
     await loadPublicApiConfig();
     if (sourceVersion !== state.sourceSeq || !state.sourceBlob) return;
     if (!PUBLIC_API_BASE && !state.visionConfig.key){
+      state.stage = 'needs-recognition';
       renderRecognitionRequired('暂时无法连接绘画服务，请稍后点击“重新识别”。草图仍然保留。');
       setStatus('绘画服务暂时无法连接，草图已保留。', 'warn');
       return;
