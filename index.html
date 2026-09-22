@@ -826,7 +826,7 @@ select.field{height:42px}
     }
     return sessionPromise.promise;
   }
-  async function siteRequest(path, init){
+  async function siteRequest(path, init, refreshedSession){
     const base = PUBLIC_API_BASE;
     const token = await siteSession(init.signal, base);
     const headers = new Headers(init.headers || {});
@@ -842,7 +842,14 @@ select.field{height:42px}
     try { response = await fetchTimeoutWithController(base + '/v1/' + path, options, path === 'images/edits' ? 30000 : 110000); }
     catch(e){ if (userCancelled(e, init.signal)) throw e; if (e && e.name === 'AbortError') throw new Error('绘画服务响应超时，请稍后重试。草图仍然保留。'); throw new Error('暂时无法连接绘画服务，请稍后重试。草图仍然保留。'); }
     const data = await response.json().catch(() => ({}));
-    if (response.status === 401){ siteToken = ''; sessionBase = ''; }
+    if (response.status === 401){
+      if (sessionBase === base){ siteToken = ''; sessionBase = ''; }
+      // Only replay recognition after an explicit authentication rejection.
+      // Image creation is never replayed because its charge may already exist.
+      let isIntent = false;
+      try { isIntent = path === 'chat/completions' && JSON.parse(init.body).phase === 'intent'; } catch (_error) {}
+      if (isIntent && !refreshedSession) return siteRequest(path, init, true);
+    }
     if (!response.ok) throw new Error(data.detail || '绘画服务暂时不可用，请稍后重试。');
     if (path !== 'images/edits') return new Response(JSON.stringify(data), {headers:{'Content-Type':'application/json'}});
     const deadline = Date.now() + 360000;
