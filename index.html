@@ -762,22 +762,73 @@ select.field{height:42px}
 
   /* ---------- 全局状态（密钥仅内存） ---------- */
 
-    const PUBLIC_API_BASE = 'https://sustained-everything-bell-gourmet.trycloudflare.com';
+    // Public endpoint is a reviewed, non-secret deployment setting.  Keeping it
+    // outside the page lets the supervisor rotate a Quick Tunnel without making
+    // this application (or a visitor's sketch) depend on a stale hard-coded URL.
+    let PUBLIC_API_BASE = '';
+    async function loadPublicApiConfig(){
+      try {
+        const configUrl = new URL('api-config.json', location.href);
+        configUrl.searchParams.set('v', String(Date.now()));
+        const response = await fetchTimeoutWithController(configUrl, {cache:'no-store'}, 8000);
+        if (!response.ok) throw new Error('configuration unavailable');
+        const config = await response.json();
+        const endpoint = new URL(String(config.api_base || ''));
+        if (endpoint.protocol !== 'https:' || endpoint.username || endpoint.password || endpoint.search || endpoint.hash){
+          throw new Error('invalid configuration');
+        }
+        const nextBase = endpoint.origin;
+        if (PUBLIC_API_BASE && PUBLIC_API_BASE !== nextBase){
+          siteToken = '';
+          sessionBase = '';
+          sessionPromise = null;
+        }
+        PUBLIC_API_BASE = nextBase;
+      } catch (_error) {
+        // Keep the sketch available for a later retry when deployment discovery
+        // fails. Public visitors never need to supply a model credential.
+        if (PUBLIC_API_BASE){ siteToken = ''; sessionBase = ''; sessionPromise = null; }
+        PUBLIC_API_BASE = '';
+      }
+    }
   let siteToken = '';
+  let sessionBase = '';
   let sessionPromise = null;
-  async function siteSession(signal){
-    if (siteToken) return siteToken;
-    if (!sessionPromise) sessionPromise = (async () => {
-      const r = await fetchTimeoutWithController(PUBLIC_API_BASE + '/api/session', {method:'POST', signal}, 20000);
-      const data = await r.json();
+  function userCancelled(error, signal){ return error && error.name === 'AbortError' && signal && signal.aborted; }
+  async function siteSession(signal, base){
+    if (!base) throw new Error('暂时无法连接绘画服务，请稍后重试。草图仍然保留。');
+    if (siteToken && sessionBase === base) return siteToken;
+    if (sessionBase !== base){ siteToken = ''; sessionBase = ''; }
+    if (!sessionPromise || sessionPromise.base !== base){
+      const pending = (async () => {
+      let r;
+      try {
+        r = await fetchTimeoutWithController(base + '/api/session', {method:'POST', signal}, 20000);
+      } catch (error) {
+        if (userCancelled(error, signal)) throw error;
+        if (error && error.name === 'AbortError') throw new Error('连接绘画服务超时，请稍后重试。草图仍然保留。');
+        throw new Error('暂时无法连接绘画服务，请稍后重试。草图仍然保留。');
+      }
+      const data = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(data.detail || '连接暂时不可用，请稍后重试。');
-      siteToken = data.token;
-      return siteToken;
-    })().finally(() => { sessionPromise = null; });
-    return sessionPromise;
+      const token = data.token;
+      // A config refresh may have selected a new tunnel while this request was
+      // in flight. Return this token to its captured request, but never cache it
+      // for the newer endpoint.
+      if (PUBLIC_API_BASE === base){ siteToken = token; sessionBase = base; }
+      return token;
+      })();
+      sessionPromise = {base, promise: pending};
+      pending.then(
+        () => { if (sessionPromise && sessionPromise.promise === pending) sessionPromise = null; },
+        () => { if (sessionPromise && sessionPromise.promise === pending) sessionPromise = null; }
+      );
+    }
+    return sessionPromise.promise;
   }
   async function siteRequest(path, init){
-    const token = await siteSession(init.signal);
+    const base = PUBLIC_API_BASE;
+    const token = await siteSession(init.signal, base);
     const headers = new Headers(init.headers || {});
     headers.set('Authorization', 'Bearer ' + token);
     const options = Object.assign({}, init, {headers});
@@ -788,16 +839,18 @@ select.field{height:42px}
       options.body.delete('negative_prompt');
     }
     let response;
-    try { response = await fetchTimeoutWithController(PUBLIC_API_BASE + '/v1/' + path, options, path === 'images/edits' ? 30000 : 110000); }
-    catch(e){ if (e.name === 'AbortError') throw e; throw new Error('暂时无法连接绘画服务，请稍后重试。草图仍然保留。'); }
+    try { response = await fetchTimeoutWithController(base + '/v1/' + path, options, path === 'images/edits' ? 30000 : 110000); }
+    catch(e){ if (userCancelled(e, init.signal)) throw e; if (e && e.name === 'AbortError') throw new Error('绘画服务响应超时，请稍后重试。草图仍然保留。'); throw new Error('暂时无法连接绘画服务，请稍后重试。草图仍然保留。'); }
     const data = await response.json().catch(() => ({}));
-    if (response.status === 401) siteToken = '';
+    if (response.status === 401){ siteToken = ''; sessionBase = ''; }
     if (!response.ok) throw new Error(data.detail || '绘画服务暂时不可用，请稍后重试。');
     if (path !== 'images/edits') return new Response(JSON.stringify(data), {headers:{'Content-Type':'application/json'}});
     const deadline = Date.now() + 360000;
     while (Date.now() < deadline){
       if (init.signal && init.signal.aborted) throw new DOMException('已取消', 'AbortError');
-      const poll = await fetchTimeoutWithController(PUBLIC_API_BASE + '/api/jobs/' + encodeURIComponent(data.job_id), {headers:{Authorization:'Bearer '+token},signal:init.signal}, 20000);
+      let poll;
+      try { poll = await fetchTimeoutWithController(base + '/api/jobs/' + encodeURIComponent(data.job_id), {headers:{Authorization:'Bearer '+token},signal:init.signal}, 20000); }
+      catch(e){ if (userCancelled(e, init.signal)) throw e; if (e && e.name === 'AbortError') throw new Error('读取创作结果超时，请稍后重试。草图仍然保留。'); throw new Error('读取创作结果失败，请稍后重试。草图仍然保留。'); }
       const job = await poll.json();
       if (!poll.ok) throw new Error(job.detail || '读取创作结果失败，请稍后重试。');
       if (job.status === 'done') return new Response(JSON.stringify(job.result), {headers:{'Content-Type':'application/json'}});
@@ -1302,8 +1355,7 @@ select.field{height:42px}
       if (state.sketchStudio.canvas){ drawSketch(); updateSketchSubmissionState(); }
     }
     setStatus(options.status || '草图已收到');
-    if (PUBLIC_API_BASE || state.visionConfig.key){ runVision(); }
-    else { state.stage = 'needs-recognition'; renderRecognitionRequired(); }
+    runVision();
   }
   function fileToBlobSource(file){
     return new Promise((resolve, reject) => {
@@ -1385,7 +1437,15 @@ select.field{height:42px}
   /* ---------- 识图 runVision ---------- */
   async function runVision(forced){
     if (!state.sourceBlob || !state.sourceDataUrl) return;
-    if (!PUBLIC_API_BASE && !state.visionConfig.key){ setStatus('未配置 vision key'); return; }
+    const sourceVersion = state.sourceSeq;
+    // Refresh discovery on every attempt, including retries on an already open page.
+    await loadPublicApiConfig();
+    if (sourceVersion !== state.sourceSeq || !state.sourceBlob) return;
+    if (!PUBLIC_API_BASE && !state.visionConfig.key){
+      renderRecognitionRequired('暂时无法连接绘画服务，请稍后点击“重新识别”。草图仍然保留。');
+      setStatus('绘画服务暂时无法连接，草图已保留。', 'warn');
+      return;
+    }
     if (state.busyVision){ setStatus('识别进行中，先别重复提交。'); return; }
     const req = ++state.requestSeq;
     const localSeq = state.sourceSeq;
@@ -1457,6 +1517,8 @@ select.field{height:42px}
     revision = typeof revision === 'string' ? revision : '';
     if (state.busyVision || state.busyGenerate) return;
     if (!state.intent || (!revision && state.stage !== 'intent')){ addGuide('请先确认对草图的理解。'); return; }
+    await loadPublicApiConfig();
+    if (!PUBLIC_API_BASE && !state.visionConfig.key){ addGuide('暂时无法连接绘画服务，请稍后再次确认。草图和已经确认的想法仍然保留。'); return; }
     const previous = state.promptDraft ? Object.assign({}, state.promptDraft) : null;
     const req = ++state.requestSeq, localSeq = state.sourceSeq;
     const controller = new AbortController();
@@ -1592,17 +1654,16 @@ select.field{height:42px}
 
   function renderRecognitionRequired(failureMessage){
     replaceCurrentCard();
-    const canRetry = !!PUBLIC_API_BASE || !!state.visionConfig.key;
-    const title = failureMessage ? '这次没能完成识图，草图和你的想法都保留着。' : '还差一步：连接识图模型';
-    const detail = failureMessage || '在右上角设置里填入 vision key，我就能先看懂你画的是什么。';
+    const title = '这次没能完成识图，草图和你的想法都保留着。';
+    const detail = failureMessage || '绘画服务暂时无法连接，请稍后重新识别。';
     const html =
       '<div style="width:80px;height:80px;margin:0 auto">' + mascot('think') + '</div>'
       + '<div class="meta">草图已收到</div><h4>' + p(title) + '</h4><p class="tiny">' + p(detail) + '</p>'
-      + '<div class="actions end"><button class="btn primary" id="openRecognitionSettings">' + (canRetry ? '重新识别' : '去设置') + '</button></div>';
+      + '<div class="actions end"><button class="btn primary" id="openRecognitionSettings">重新识别</button></div>';
     const box = addMsg('assistant', html);
     state.draftNode = box;
     box.querySelector('#openRecognitionSettings').addEventListener('click', () => {
-      if (canRetry) runVision(true); else $('#settingsBtn').click();
+      runVision(true);
     });
   }
 
@@ -1663,7 +1724,7 @@ select.field{height:42px}
     // 内容过滤：画面描述 + 风格 + 负面词
     const hit = findBanned(state.promptDraft.positive + ' ' + state.promptDraft.style);
     if (hit){ toast('⚠️ 内容包含不适宜词语，请修改后再生成'); return; }
-    if (!PUBLIC_API_BASE && !state.imageConfig.key){ addGuide('还没有连接生图模型，请先在设置里填写 image key。'); return; }
+    if (!PUBLIC_API_BASE && !state.imageConfig.key){ addGuide('绘画服务暂时无法连接，草图和提示词已保留。请稍后重试。'); return; }
     if (!consumePointsIfAllowed()) return;
     runGenerate();
   }
@@ -2103,7 +2164,8 @@ select.field{height:42px}
   }
 
   /* ---------- 启动 ---------- */
-  function bootstrap(){
+  async function bootstrap(){
+    await loadPublicApiConfig();
     if (location.protocol === 'file:'){
       const warn = document.createElement('div');
       warn.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#fff3cd;color:#856404;padding:10px 16px;font-size:13px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.12);line-height:1.5';
